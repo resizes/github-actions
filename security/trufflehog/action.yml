@@ -4,9 +4,9 @@ runs:
   using: "composite"
   steps:
     - name: Run TruffleHog Scan
-      uses: trufflesecurity/trufflehog-action@main
+      uses: trufflesecurity/trufflehog@main
       with:
-        args: --only-verified --format json --output-file trufflehog.json
+        extra_args: --results=verified,unknown
 
     - name: Process Results
       run: |
