@@ -1,0 +1,18 @@
+name: "Semgrep Scan"
+description: "Run Semgrep and add results to GitHub Action summary"
+inputs:
+  config:
+    description: "Semgrep config (default: p/ci)"
+    default: "p/ci"
+runs:
+  using: "composite"
+  steps:
+    - run: pip install semgrep
+      shell: bash
+
+    - run: |
+        semgrep --config ${{ inputs.config }} --json > semgrep.json || true
+        echo "## 🔍 Semgrep Report" >> $GITHUB_STEP_SUMMARY
+        count=$(jq '.results | length' semgrep.json)
+        echo "$count findings" >> $GITHUB_STEP_SUMMARY
+      shell: bash

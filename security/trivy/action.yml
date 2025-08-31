@@ -1,0 +1,21 @@
+name: "Trivy Scan"
+description: "Run Trivy on source code and add results to summary"
+inputs:
+  scan-ref:
+    description: "Path or image to scan"
+    default: "."
+runs:
+  using: "composite"
+  steps:
+    - uses: aquasecurity/trivy-action@0.20.0
+      with:
+        scan-type: fs
+        scan-ref: ${{ inputs.scan-ref }}
+        format: json
+        output: trivy.json
+
+    - run: |
+        echo "## 🐳 Trivy Report" >> $GITHUB_STEP_SUMMARY
+        vulns=$(jq '[.Results[].Vulnerabilities] | add | length' trivy.json)
+        echo "$vulns vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+      shell: bash
