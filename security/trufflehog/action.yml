@@ -1,0 +1,32 @@
+name: "TruffleHog Scan"
+description: "Run TruffleHog secret scanner and add results to summary"
+runs:
+  using: "composite"
+  steps:
+    - name: Run TruffleHog Scan
+      uses: trufflesecurity/trufflehog-action@main
+      with:
+        args: --only-verified --format json --output-file trufflehog.json
+
+    - name: Process Results
+      run: |
+        echo "## �� TruffleHog Report" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f trufflehog.json ]; then
+          # Count verified secrets found
+          secrets=$(jq length trufflehog.json 2>/dev/null || echo "0")
+          
+          if [ "$secrets" -gt 0 ]; then
+            echo "🚨 **$secrets verified secrets found!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Detected Secrets:" >> $GITHUB_STEP_SUMMARY
+            
+            # Extract and display secret details
+            jq -r '.[] | "- **\(.source_type):** \(.source_name) - \(.detector_name)"' trufflehog.json >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No verified secrets found" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "⚠️ Scan completed but no results file found" >> $GITHUB_STEP_SUMMARY
+        fi
+      shell: bash
