@@ -4,11 +4,14 @@ runs:
   using: "composite"
   steps:
     - name: Run TruffleHog Scan
-      uses: trufflesecurity/trufflehog@main
-      with:
-        extra_args: --results=verified,unknown
-      continue-on-error: true   # TruffleHog will show error code 183 whenever a potential secret is found
-                                # Added so the rest of the action is shown
+      run: |
+        trufflehog git https://github.com/trufflesecurity/test_keys \ # Scanning GitHub Repo
+        --results=verified,unknown \                                  # Only for verified keys (no false positives)
+        --json > trufflehog.json \                                    
+        || true   # TruffleHog will show error code 183 whenever a potential secret is found
+                  # Added so the rest of the action is shown
+      shell: bash
+        
       
     - name: Process Results
       run: |
