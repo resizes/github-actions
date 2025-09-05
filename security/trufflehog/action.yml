@@ -18,7 +18,9 @@ runs:
     - name: Process Results
       run: |
         echo "## �� TruffleHog Report" >> $GITHUB_STEP_SUMMARY
-        
+        echo "file contents:"
+        cat trufflehog.json
+        echo "--------------------------------"
         if [ -f trufflehog.json ]; then
           # Count verified secrets found
           secrets=$(jq -s '[.[] | select(.detector_name != null)] | length' trufflehog.json || echo "0")
