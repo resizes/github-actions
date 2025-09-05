@@ -7,9 +7,8 @@ runs:
       run: |
         trufflehog git https://github.com/trufflesecurity/test_keys \ # Scanning GitHub Repo
         --results=verified,unknown \                                  # Only for verified keys (no false positives)
-        --json > trufflehog.json \                                    
-        || true   # TruffleHog will show error code 183 whenever a potential secret is found
-                  # Added so the rest of the action is shown
+        --json > trufflehog.json || true   # TruffleHog will show error code 183 whenever a potential secret is found
+                                           # Added so the rest of the action is shown
       shell: bash
         
       
