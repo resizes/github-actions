@@ -21,19 +21,25 @@ runs:
         echo "file contents:"
         cat trufflehog.json
         echo "--------------------------------"
-         if [ -s trufflehog.json ]; then
+
+        if [ -s trufflehog.json ]; then
           # Count detected secrets
           secrets=$(jq 'select(.DetectorName != null)' trufflehog.json | wc -l)
 
           if [ "$secrets" -gt 0 ]; then
-            echo "🚨 **$secrets verified secrets found!**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Detected Secrets:" >> $GITHUB_STEP_SUMMARY
+            # Check if DetectorName exists
+            secret_exists=$(jq 'has("DetectorName") and .DetectorName != null' trufflehog.json)
 
-            # List each secret
-            jq -r 'select(.DetectorName != null) | "- **\(.SourceType):** \(.SourceName) - \(.DetectorName)"' trufflehog.json >> $GITHUB_STEP_SUMMARY
+            if [ "$secret_exists" = "true" ]; then
+              echo "🚨 Secret found!" >> $GITHUB_STEP_SUMMARY
+              echo "### Detected Secret:" >> $GITHUB_STEP_SUMMARY
+
+              # Print secret details
+              jq -r '"- **SourceType:** \(.SourceType) | **SourceName:** \(.SourceName) | **DetectorName:** \(.DetectorName) | **Verified:** \(.Verified) | **Raw:** \(.Raw)"' trufflehog.json >> $GITHUB_STEP_SUMMARY
+            fi
+
           else
-            echo "✅ No verified secrets found" >> $GITHUB_STEP_SUMMARY
+              echo "✅ No secrets found" >> $GITHUB_STEP_SUMMARY
           fi
         else
           echo "⚠️ Scan completed but no results file found" >> $GITHUB_STEP_SUMMARY
