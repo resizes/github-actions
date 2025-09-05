@@ -38,3 +38,4 @@ runs:
         else
           echo "⚠️ Scan completed but no results file found" >> $GITHUB_STEP_SUMMARY
         fi
+      shell: bash
