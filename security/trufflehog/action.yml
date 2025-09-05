@@ -21,7 +21,7 @@ runs:
         
         if [ -f trufflehog.json ]; then
           # Count verified secrets found
-          secrets=$(jq length trufflehog.json 2>/dev/null || echo "0")
+          secrets=$(jq -s '[.[] | select(.detector_name != null)] | length' trufflehog.json || echo "0")
           
           if [ "$secrets" -gt 0 ]; then
             echo "🚨 **$secrets verified secrets found!**" >> $GITHUB_STEP_SUMMARY
