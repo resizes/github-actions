@@ -31,6 +31,7 @@ runs:
             if [ "$has_detector" = "true" ]; then
               echo "### Detected Secret:" >> $GITHUB_STEP_SUMMARY
               echo "$secret" | jq -r '"- **SourceType:** \(.SourceType) | **SourceName:** \(.SourceName) | **DetectorName:** \(.DetectorName) | **Verified:** \(.Verified) | **Raw:** \(.Raw)"' >> $GITHUB_STEP_SUMMARY
+            fi
           done < <(jq -c '.' trufflehog.json)
 
           if [ $counter -eq 0 ]; then
