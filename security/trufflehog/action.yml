@@ -25,7 +25,7 @@ runs:
             has_detector=$(echo "$secret" | jq 'has("DetectorName") and .DetectorName != null')
             if [ "$has_detector" = "true" ]; then
               echo "### Detected Secret:" >> $GITHUB_STEP_SUMMARY
-              echo "$secret" | jq -r '"- **Raw:** \(.Raw) | **File:** \(.file (line:.line)) | **Description:** \(.DetectorDescription)' >> $GITHUB_STEP_SUMMARY
+              echo "$secret" | jq -r '"- **Raw:** \(.Raw) | **File:** \(.file (line:\(.line))) | **Description:** \(.DetectorDescription)' >> $GITHUB_STEP_SUMMARY
             fi
           done
 
