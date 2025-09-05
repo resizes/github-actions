@@ -36,8 +36,9 @@ runs:
 
           if [ $counter -eq 0 ]; then
             echo "✅ No secrets found" >> $GITHUB_STEP_SUMMARY
-          fi  
-
+          else 
+            echo "🚨 $counter secrets found" >> $GITHUB_STEP_SUMMARY
+          fi 
           
         else
           echo "⚠️ Scan completed but no results file found" >> $GITHUB_STEP_SUMMARY
