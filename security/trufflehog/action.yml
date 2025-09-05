@@ -7,7 +7,9 @@ runs:
       uses: trufflesecurity/trufflehog@main
       with:
         extra_args: --results=verified,unknown
-
+      continue-on-error: true   # TruffleHog will show error code 183 whenever a potential secret is found
+                                # Added so the rest of the action is shown
+      
     - name: Process Results
       run: |
         echo "## �� TruffleHog Report" >> $GITHUB_STEP_SUMMARY
