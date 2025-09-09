@@ -18,4 +18,12 @@ runs:
         echo "## 🐳 Trivy Report" >> $GITHUB_STEP_SUMMARY
         vulns=$(jq '[.Results[].Vulnerabilities] | add | length' trivy.json)
         echo "$vulns vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+        if [ "$vulns" -gt 0 ]; then
+          echo "| Severity | Package | Version | Vulnerability ID | Title |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|---------|------------------|-------|" >> $GITHUB_STEP_SUMMARY
+          jq -r '
+            .Results[].Vulnerabilities[] |
+            "| \(.Severity) | \(.PkgName) | \(.InstalledVersion) | \(.VulnerabilityID) | \(.Title)"' trivy.json \
+            >> $GITHUB_STEP_SUMMARY
+        fi
       shell: bash
