@@ -11,8 +11,22 @@ runs:
       shell: bash
 
     - run: |
-        semgrep --config ${{ inputs.config }} --json > semgrep.json || true
+        semgrep --config "${{ inputs.config }}" --json > semgrep.json || true
+
         echo "## 🔍 Semgrep Report" >> $GITHUB_STEP_SUMMARY
+
         count=$(jq '.results | length' semgrep.json)
-        echo "$count findings" >> $GITHUB_STEP_SUMMARY
+        echo "**$count findings**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ "$count" -gt 0 ]; then
+          echo "| Rule | File | Start Line | Message |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|------------|---------|" >> $GITHUB_STEP_SUMMARY
+
+          jq -r '.results[] | 
+            "| \(.check_id) | \(.path) | \(.start.line) | \(.extra.message)"' \
+            semgrep.json >> $GITHUB_STEP_SUMMARY
+        else
+          echo "✅ No findings detected." >> $GITHUB_STEP_SUMMARY
+        fi
       shell: bash
