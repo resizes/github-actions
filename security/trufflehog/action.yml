@@ -17,18 +17,25 @@ runs:
       
     - name: Process Results
       run: |
-        echo "## 🐗 TruffleHog Report" >> $GITHUB_STEP_SUMMARY
+       echo "## 🐗 TruffleHog Report" >> $GITHUB_STEP_SUMMARY
 
         if [ -s trufflehog.json ]; then
-          # Loop through each JSON object
-          jq -c '.' trufflehog.json | while read -r secret; do
-            has_detector=$(echo "$secret" | jq 'has("DetectorName") and .DetectorName != null')
-            if [ "$has_detector" = "true" ]; then
-              echo "### Detected Secret:" >> $GITHUB_STEP_SUMMARY
-              echo "$secret" | jq -r '"- **Raw:** \(.Raw) | **File:** \(.SourceMetadata.Data.Git.file) (line: \(.SourceMetadata.Data.Git.line)) | **Description:** \(.DetectorDescription)"' >> $GITHUB_STEP_SUMMARY
-            fi
-          done
+          count=$(jq -c '. | length' trufflehog.json 2>/dev/null || jq -s 'length' trufflehog.json)
+          echo "**$count potential secrets found**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
+          if [ "$count" -gt 0 ]; then
+            echo "| Detector | File | Line | Description |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|------|------|-------------|" >> $GITHUB_STEP_SUMMARY
+
+            jq -r '
+              .[] | 
+              select(.DetectorName != null) |
+              "| \(.DetectorName) | \(.SourceMetadata.Data.Git.file) | \(.SourceMetadata.Data.Git.line) | \(.DetectorDescription)"' \
+              trufflehog.json >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No secrets detected." >> $GITHUB_STEP_SUMMARY
+          fi
         else
           echo "⚠️ Scan completed but no results file found" >> $GITHUB_STEP_SUMMARY
         fi
