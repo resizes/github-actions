@@ -19,24 +19,27 @@ runs:
       run: |
        echo "## 🐗 TruffleHog Report" >> $GITHUB_STEP_SUMMARY
 
-        if [ -s trufflehog.json ]; then
-          count=$(jq -c '. | length' trufflehog.json 2>/dev/null || jq -s 'length' trufflehog.json)
+        # Filter only actual secret objects (ignore logs)
+        jq -c 'select(.DetectorName != null)' trufflehog.json | jq -s '.' > trufflehog_secrets.json
+
+        if [ -s trufflehog_secrets.json ]; then
+          count=$(jq '. | length' trufflehog_secrets.json)
           echo "**$count potential secrets found**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "$count" -gt 0 ]; then
+            # Table header
             echo "| Detector | File | Line | Description |" >> $GITHUB_STEP_SUMMARY
             echo "|----------|------|------|-------------|" >> $GITHUB_STEP_SUMMARY
 
-            jq -r '
-              .[] | 
-              select(.DetectorName != null) |
+            # Table rows
+            jq -r '.[] | 
               "| \(.DetectorName) | \(.SourceMetadata.Data.Git.file) | \(.SourceMetadata.Data.Git.line) | \(.DetectorDescription)"' \
-              trufflehog.json >> $GITHUB_STEP_SUMMARY
+              trufflehog_secrets.json >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ No secrets detected." >> $GITHUB_STEP_SUMMARY
           fi
         else
-          echo "⚠️ Scan completed but no results file found" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ Scan completed but no secrets found." >> $GITHUB_STEP_SUMMARY
         fi
       shell: bash
