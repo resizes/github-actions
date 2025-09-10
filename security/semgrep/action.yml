@@ -21,7 +21,7 @@ runs:
 
         if [ "$count" -gt 0 ]; then
           # Collapsible details block
-          echo "<details><summary>📋 Full Findings ($count)</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "<details><summary>Full Report ($count findings)</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Table header
