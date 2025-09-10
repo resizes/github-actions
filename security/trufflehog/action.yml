@@ -28,7 +28,6 @@ runs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "$count" -gt 0 ]; then
-            # Wrap results in a collapsible dropdown
             echo "<details><summary>Full Report ($count findings)</summary>" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -36,9 +35,9 @@ runs:
             echo "| Detector | File | Line | Description |" >> $GITHUB_STEP_SUMMARY
             echo "|----------|------|------|-------------|" >> $GITHUB_STEP_SUMMARY
 
-            # Table rows
-            jq -r '.[] | 
-              "| \(.DetectorName) | \(.SourceMetadata.Data.Git.file) | \(.SourceMetadata.Data.Git.line) | \(.DetectorDescription)"' \
+            # Table rows with clickable file links
+            jq -r --arg repo "$GITHUB_REPOSITORY" --arg ref "$GITHUB_REF_NAME" '.[] |
+              "| \(.DetectorName) | [\(.SourceMetadata.Data.Git.file)](https://github.com/\($repo)/blob/\($ref)/\(.SourceMetadata.Data.Git.file)#L\(.SourceMetadata.Data.Git.line)) | \(.SourceMetadata.Data.Git.line) | \(.DetectorDescription)"' \
               trufflehog_secrets.json >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY

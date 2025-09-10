@@ -20,7 +20,6 @@ runs:
         echo "" >> $GITHUB_STEP_SUMMARY
 
         if [ "$count" -gt 0 ]; then
-          # Collapsible details block
           echo "<details><summary>Full Report ($count findings)</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -28,9 +27,10 @@ runs:
           echo "| Rule | File | Start Line | Message |" >> $GITHUB_STEP_SUMMARY
           echo "|------|------|------------|---------|" >> $GITHUB_STEP_SUMMARY
 
-          # Table rows
-          jq -r '.results[] | 
-            "| \(.check_id) | \(.path) | \(.start.line) | \(.extra.message)"' \
+          # Table rows with clickable file links
+          jq -r --arg repo "$GITHUB_REPOSITORY" --arg ref "$GITHUB_REF_NAME" '
+            .results[] | 
+            "| \(.check_id) | [\(.path)](https://github.com/\($repo)/blob/\($ref)/\(.path)#L\(.start.line)) | \(.start.line) | \(.extra.message)"' \
             semgrep.json >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
