@@ -29,11 +29,21 @@ runs:
           echo "| Severity | Package | Version | Vulnerability ID | Title |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|---------|---------|------------------|-------|" >> $GITHUB_STEP_SUMMARY
 
-          # Table rows
+          # Table rows sorted by severity
           jq -r '
-            .Results[].Vulnerabilities[] |
-            "| \(.Severity) | \(.PkgName) | \(.InstalledVersion) | \(.VulnerabilityID) | \(.Title)"' trivy.json \
-            >> $GITHUB_STEP_SUMMARY
+            [.Results[].Vulnerabilities[]] 
+            | sort_by(
+                # Map severity to a number for custom order: critical=1, high=2, medium=3, low=4
+                .Severity as $s 
+                | if $s == "CRITICAL" then 1
+                  elif $s == "HIGH" then 2
+                  elif $s == "MEDIUM" then 3
+                  elif $s == "LOW" then 4
+                  else 5 end
+              )
+            | .[]
+            | "| \(.Severity) | \(.PkgName) | \(.InstalledVersion) | \(.VulnerabilityID) | \(.Title) |"
+          ' trivy.json >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
