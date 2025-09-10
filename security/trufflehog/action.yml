@@ -29,7 +29,7 @@ runs:
 
           if [ "$count" -gt 0 ]; then
             # Wrap results in a collapsible dropdown
-            echo "<details><summary>🔎 Full Report ($count findings)</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Full Report ($count findings)</summary>" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
 
             # Table header
