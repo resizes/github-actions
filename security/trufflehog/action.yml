@@ -17,7 +17,7 @@ runs:
       
     - name: Process Results
       run: |
-       echo "## 🐗 TruffleHog Report" >> $GITHUB_STEP_SUMMARY
+        echo "## 🐗 TruffleHog Report" >> $GITHUB_STEP_SUMMARY
 
         # Filter only actual secret objects (ignore logs)
         jq -c 'select(.DetectorName != null)' trufflehog.json | jq -s '.' > trufflehog_secrets.json
@@ -28,6 +28,10 @@ runs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "$count" -gt 0 ]; then
+            # Wrap results in a collapsible dropdown
+            echo "<details><summary>🔎 Full Report ($count findings)</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
             # Table header
             echo "| Detector | File | Line | Description |" >> $GITHUB_STEP_SUMMARY
             echo "|----------|------|------|-------------|" >> $GITHUB_STEP_SUMMARY
@@ -36,6 +40,9 @@ runs:
             jq -r '.[] | 
               "| \(.DetectorName) | \(.SourceMetadata.Data.Git.file) | \(.SourceMetadata.Data.Git.line) | \(.DetectorDescription)"' \
               trufflehog_secrets.json >> $GITHUB_STEP_SUMMARY
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ No secrets detected." >> $GITHUB_STEP_SUMMARY
           fi
