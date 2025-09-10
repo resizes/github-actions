@@ -20,12 +20,21 @@ runs:
         echo "" >> $GITHUB_STEP_SUMMARY
 
         if [ "$count" -gt 0 ]; then
+          # Collapsible details block
+          echo "<details><summary>📋 Full Findings ($count)</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Table header
           echo "| Rule | File | Start Line | Message |" >> $GITHUB_STEP_SUMMARY
           echo "|------|------|------------|---------|" >> $GITHUB_STEP_SUMMARY
 
+          # Table rows
           jq -r '.results[] | 
             "| \(.check_id) | \(.path) | \(.start.line) | \(.extra.message)"' \
             semgrep.json >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
         else
           echo "✅ No findings detected." >> $GITHUB_STEP_SUMMARY
         fi
