@@ -20,7 +20,8 @@ runs:
       with:
         scan-type: repo
         scan-ref: .
-
+        format: json
+        output: trivy.json
 
     - run: |
         echo "## 🐳 Trivy Report" >> $GITHUB_STEP_SUMMARY
