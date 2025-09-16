@@ -16,6 +16,12 @@ runs:
         format: json
         output: trivy.json
 
+    - uses: aquasecurity/trivy-action@0.20.0
+      with:
+        scan-type: repo
+        scan-ref: .
+
+
     - run: |
         echo "## 🐳 Trivy Report" >> $GITHUB_STEP_SUMMARY
         vulns=$(jq '[.Results[].Vulnerabilities] | add | length' trivy.json)
