@@ -1,0 +1,53 @@
+name: "Trivy Scan"
+description: "Run Trivy on source code and add results to summary"
+inputs:
+  scan-ref:
+    description: "Path or image to scan"
+    default: "."
+runs:
+  using: "composite"
+  steps:
+    - uses: aquasecurity/trivy-action@0.20.0
+      with:
+        scan-type: fs
+        scan-ref: ${{ inputs.scan-ref }}
+        format: json
+        output: trivy.json
+
+    - run: |
+        echo "## 🐳 Trivy Report" >> $GITHUB_STEP_SUMMARY
+        vulns=$(jq '[.Results[].Vulnerabilities] | add | length' trivy.json)
+        echo "**$vulns vulnerabilities found**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ "$vulns" -gt 0 ]; then
+          # Wrap the table in a collapsible block
+          echo "<details><summary>Full Report ($vulns findings)</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Table header
+          echo "| Severity | Package | Version | Vulnerability ID | Title |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|---------|------------------|-------|" >> $GITHUB_STEP_SUMMARY
+
+          # Table rows sorted by severity
+          jq -r '
+            [.Results[].Vulnerabilities[]] 
+            | sort_by(
+                # Map severity to a number for custom order: critical=1, high=2, medium=3, low=4
+                .Severity as $s 
+                | if $s == "CRITICAL" then 1
+                  elif $s == "HIGH" then 2
+                  elif $s == "MEDIUM" then 3
+                  elif $s == "LOW" then 4
+                  else 5 end
+              )
+            | .[]
+            | "| \(.Severity) | \(.PkgName) | \(.InstalledVersion) | \(.VulnerabilityID) | \(.Title) |"
+          ' trivy.json >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "✅ No vulnerabilities detected." >> $GITHUB_STEP_SUMMARY
+        fi
+      shell: bash
