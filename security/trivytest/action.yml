@@ -10,6 +10,8 @@ runs:
     - uses: aquasecurity/trivy-action@0.20.0
       with:
         scan-type: fs
+        vuln-type: os,library      # <-- include application 
+        ignore-unfixed: false
         scan-ref: ${{ inputs.scan-ref }}
         format: json
         output: trivy.json
