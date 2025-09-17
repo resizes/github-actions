@@ -7,7 +7,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: aquasecurity/trivy-action@0.20.0
+    - uses: aquasecurity/trivy-action@0.66.0
       with:
         scan-type: fs
         scan-ref: ${{ inputs.scan-ref }}
