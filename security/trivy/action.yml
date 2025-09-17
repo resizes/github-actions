@@ -4,15 +4,21 @@ inputs:
   scan-ref:
     description: "Path or image to scan"
     default: "."
+
+  scanning-image:
+    description: "Boolean value for flagging whenever the scan will be done to a docker image. False otherwise"
+    default: "false"
+
 runs:
   using: "composite"
   steps:
-    - uses: aquasecurity/trivy-action@0.66.0
-      with:
-        scan-type: fs
-        scan-ref: ${{ inputs.scan-ref }}
-        format: json
-        output: trivy.json
+    - name: Run Trivy scan
+      uses: aquasecurity/trivy-action@0.66.0
+        with:
+          scan-type: ${{ inputs.scanning-image == 'true' && 'image' || 'fs' }}
+          scan-ref: ${{ inputs.scan-ref }}
+          format: json
+          output: trivy.json
 
     - run: |
         echo "## 🐳 Trivy Report" >> $GITHUB_STEP_SUMMARY
