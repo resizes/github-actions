@@ -13,7 +13,7 @@ runs:
   using: "composite"
   steps:
     - name: Run Trivy scan
-      uses: aquasecurity/trivy-action@v0.66.0
+      uses: aquasecurity/trivy-action@v0.33.1
       with:
         scan-type: ${{ inputs.scanning-image == 'true' && 'image' || 'fs' }}
         scan-ref: ${{ inputs.scan-ref }}
