@@ -14,11 +14,11 @@ runs:
   steps:
     - name: Run Trivy scan
       uses: aquasecurity/trivy-action@0.66.0
-        with:
-          scan-type: ${{ inputs.scanning-image == 'true' && 'image' || 'fs' }}
-          scan-ref: ${{ inputs.scan-ref }}
-          format: json
-          output: trivy.json
+      with:
+        scan-type: ${{ inputs.scanning-image == 'true' && 'image' || 'fs' }}
+        scan-ref: ${{ inputs.scan-ref }}
+        format: json
+        output: trivy.json
 
     - run: |
         echo "## 🐳 Trivy Report" >> $GITHUB_STEP_SUMMARY
