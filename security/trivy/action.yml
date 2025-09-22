@@ -13,7 +13,7 @@ runs:
   using: "composite"
   steps:
     - run: ls -lR
-      shell:bash
+      shell: bash
     - name: Run Trivy scan
       uses: aquasecurity/trivy-action@0.33.1
       with:
