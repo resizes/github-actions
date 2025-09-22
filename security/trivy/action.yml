@@ -18,7 +18,7 @@ runs:
       uses: aquasecurity/trivy-action@0.33.1
       with:
         scan-type: ${{ inputs.scanning-image == 'true' && 'image' || 'fs' }}
-        scan-ref: ${{ inputs.scan-ref }}
+        scan-ref: ./
         format: json
         output: trivy.json
 
