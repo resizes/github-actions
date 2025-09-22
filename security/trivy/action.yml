@@ -12,6 +12,7 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - run: ls -lR
     - name: Run Trivy scan
       uses: aquasecurity/trivy-action@0.33.1
       with:
