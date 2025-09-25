@@ -1,10 +1,15 @@
-name: "NuGet Scan"
-description: "Scan .NET projects for NuGet warnings and vulnerabilities, add results to GitHub summary"
-
+name: "NuGet Security Report"
+description: "Restore .NET projects and report vulnerable NuGet packages"
 inputs:
+  dotnet-version:
+    description: "The .NET version to use"
+    default: "8.0.x"
+
   project-path:
-    description: "Path to search for .csproj files"
-    default: "."
+    description: 'Path to scan for .csproj files'
+    required: false
+    default: './'
+
 
 runs:
   using: "composite"
@@ -15,15 +20,16 @@ runs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: ${{ inputs.dotnet-version }}
 
-    - name: Restore projects & collect warnings
+    - name: Restore projects and capture warnings
       shell: bash
       run: |
         echo "## 🛡 NuGet Warnings & Vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        echo "<details><summary>Full Report ($vulns findings)</summary>" >> $GITHUB_STEP_SUMMARY
         issues=0
-        all_findings=""
 
+        # Find all .csproj files
         projects=$(find "${{ inputs.project-path }}" -name '*.csproj')
 
         for proj in $projects; do
@@ -33,43 +39,30 @@ runs:
           # Capture all NU warnings (NUxxxx)
           nu_warnings=$(echo "$restore_output" | grep -E "NU[0-9]{4}" || true)
           if [ -n "$nu_warnings" ]; then
-            while IFS= read -r line; do
-              sev="NOTE"
-              pkg=$(echo "$line" | awk '{print $4}' || echo "-")
-              title="$line"
-              all_findings+="$sev|$pkg|-|$line|$title"$'\n'
-              issues=$((issues+1))
-            done <<< "$nu_warnings"
+            count=$(echo "$nu_warnings" | wc -l)
+            issues=$((issues + count))
+            echo "### Warnings in $proj" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$nu_warnings" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
           # Check for vulnerable packages
           vuln_output=$(dotnet list "$proj" package --vulnerable 2>&1 || true)
-          vuln_lines=$(echo "$vuln_output" | tail -n +7)  # skip headers
-
-          while IFS= read -r line; do
-            [ -z "$line" ] && continue
-            sev=$(echo "$line" | awk '{print $5}')
-            pkg=$(echo "$line" | awk '{print $2}')
-            ver=$(echo "$line" | awk '{print $3}')
-            adv=$(echo "$line" | awk '{print $6}')
-            title="$pkg: Known NuGet vulnerability"
-            all_findings+="$sev|$pkg|$ver|$adv|$title"$'\n'
-            issues=$((issues+1))
-          done <<< "$vuln_lines"
+          vuln_lines=$(echo "$vuln_output" | grep -E 'Vulnerable packages|Top-level Package' || true)
+          if [ -n "$vuln_lines" ]; then
+            vuln_count=$(echo "$vuln_lines" | wc -l)
+            issues=$((issues + vuln_count))
+            echo "### Vulnerable packages in $proj" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$vuln_output" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
         done
 
         if [ "$issues" -eq 0 ]; then
           echo "✅ No NuGet warnings or vulnerable packages detected." >> $GITHUB_STEP_SUMMARY
         else
           echo "**$issues issues found across projects**" >> $GITHUB_STEP_SUMMARY
-          echo "<details><summary>Full Report ($issues findings)</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Severity | Package | Version | Vulnerability ID | Title |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|---------|---------|-----------------|-------|" >> $GITHUB_STEP_SUMMARY
-
-          echo "$all_findings" | sort -t'|' -k1,1r | while IFS='|' read -r sev pkg ver adv title; do
-            echo "| $sev | $pkg | $ver | $adv | $title |" >> $GITHUB_STEP_SUMMARY
-          done
-
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
         fi
+        echo "</details>" >> $GITHUB_STEP_SUMMARY
