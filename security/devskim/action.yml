@@ -1,0 +1,43 @@
+name: "DevSkim Security Report"
+description: "Run DevSkim(static code analysis) scan and add results to GitHub summary"
+
+inputs:
+  scan-directory:
+    description: "Directory to scan"
+    default: "./"
+  output-file:
+    description: "Output SARIF file name"
+    default: "devskim.sarif"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run DevSkim
+      uses: microsoft/devskim-action@v1
+      with:
+        directory-to-scan: ${{ inputs.scan-directory }}
+        output-filename: ${{ inputs.output-file }}
+
+    - name: Parse DevSkim results and write summary
+      run: |
+        if [ ! -f ${{ inputs.output-file }} ]; then
+          echo "✅ No DevSkim report found." >> $GITHUB_STEP_SUMMARY
+          exit 0
+        fi
+
+        # Count total issues
+        issues=$(jq '.runs[].results | length' ${{ inputs.output-file }})
+        
+        echo "## 🛡 DevSkim Security Report" >> $GITHUB_STEP_SUMMARY
+        if [ "$issues" -gt 0 ]; then
+          echo "**$issues issues found**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          jq -r '.runs[].results[] | "\(.ruleId) | \(.level) | \(.message.text) | \(.locations[].physicalLocation.artifactLocation.uri)"' ${{ inputs.output-file }} >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        else
+          echo "✅ No security issues detected." >> $GITHUB_STEP_SUMMARY
+        fi
+      shell: bash
