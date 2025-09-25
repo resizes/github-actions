@@ -1,0 +1,51 @@
+name: "NuGet Security Report"
+description: "Restore .NET projects and report vulnerable NuGet packages"
+inputs:
+  dotnet-version:
+    description: "The .NET version to use"
+    default: "8.0.x"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+
+    - name: Restore projects
+      shell: bash
+      run: |
+        echo "## 🛡 NuGet Restore Warnings" >> $GITHUB_STEP_SUMMARY
+        projects=$(find . -name '*.csproj')
+        for proj in $projects; do
+          echo "Restoring $proj..."
+          dotnet restore "$proj" --ignore-failed-sources || true
+        done
+
+    - name: Check for vulnerable packages
+      shell: bash
+      run: |
+        echo "## 🛡 NuGet Vulnerability Report" >> $GITHUB_STEP_SUMMARY
+        issues_found=0
+
+        for proj in $projects; do
+          vuln_output=$(dotnet list "$proj" package --vulnerable 2>&1 || true)
+          vuln_count=$(echo "$vuln_output" | grep -E 'Vulnerable packages|Top-level Package' | wc -l)
+          if [ "$vuln_count" -gt 0 ]; then
+            issues_found=$((issues_found + vuln_count))
+            echo "### $proj" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$vuln_output" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+        done
+
+        if [ "$issues_found" -eq 0 ]; then
+          echo "✅ No vulnerable NuGet packages detected." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "**$issues_found vulnerable packages found across projects**" >> $GITHUB_STEP_SUMMARY
+        fi
