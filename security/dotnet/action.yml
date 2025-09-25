@@ -59,10 +59,11 @@ runs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
         done
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "</details>" >> $GITHUB_STEP_SUMMARY
 
         if [ "$issues" -eq 0 ]; then
           echo "✅ No NuGet warnings or vulnerable packages detected." >> $GITHUB_STEP_SUMMARY
         else
           echo "**$issues issues found across projects**" >> $GITHUB_STEP_SUMMARY
         fi
-        echo "</details>" >> $GITHUB_STEP_SUMMARY
