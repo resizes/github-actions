@@ -14,47 +14,53 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Checkout repo
+    - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: "8.0.x"
+        dotnet-version: ${{ inputs.dotnet-version }}
 
-    - name: Restore projects & scan
+    - name: Restore projects and capture warnings
       shell: bash
       run: |
-        echo "## 🛡 NuGet Warnings & Vulnerabilities" >> $GITHUB_STEP_SUMMARY
-        issues=0
+        echo "## 🛡 NuGet Vulnerability Report" >> $GITHUB_STEP_SUMMARY
 
-        # Find all csproj files inside this run block
-        projects=$(find . -name '*.csproj')
+        all_findings=""
+
         for proj in $projects; do
-          echo "Restoring $proj..."
-          restore_output=$(dotnet restore "$proj" --ignore-failed-sources 2>&1 || true)
-          nus=$(echo "$restore_output" | grep -E '^.*NU[0-9]{4}:' || true)
-          if [ -n "$nus" ]; then
-            issues=$((issues + $(echo "$nus" | wc -l)))
-            echo "### $proj" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$nus" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
+            # Capture vulnerable packages
+            vuln_output=$(dotnet list "$proj" package --vulnerable 2>&1 || true)
 
-          vuln_output=$(dotnet list "$proj" package --vulnerable 2>&1 || true)
-          vuln_lines=$(echo "$vuln_output" | grep -E 'Top-level Package|Vulnerable packages' || true)
-          if [ -n "$vuln_lines" ]; then
-            issues=$((issues + $(echo "$vuln_lines" | wc -l)))
-            echo "### Vulnerable packages in $proj" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$vuln_output" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
+            # Extract relevant lines: skip headers
+            vuln_lines=$(echo "$vuln_output" | tail -n +7)
+
+            while IFS= read -r line; do
+                # line example: "> RestSharp            111.4.0     111.4.0    Moderate   https://github.com/advisories/GHSA-4rr6-2v9v-wcpc"
+                pkg=$(echo "$line" | awk '{print $2}')
+                version=$(echo "$line" | awk '{print $3}')
+                severity=$(echo "$line" | awk '{print $5}')
+                advisory=$(echo "$line" | awk '{print $6}')
+                title="$pkg: Known NuGet vulnerability"
+
+                all_findings+="$severity|$pkg|$version|$advisory|$title"$'\n'
+            done <<< "$vuln_lines"
         done
 
-        if [ "$issues" -eq 0 ]; then
-          echo "✅ No NuGet warnings or vulnerable packages detected." >> $GITHUB_STEP_SUMMARY
+        if [ -z "$all_findings" ]; then
+            echo "✅ No vulnerable packages detected." >> $GITHUB_STEP_SUMMARY
         else
-          echo "**$issues issues found across projects**" >> $GITHUB_STEP_SUMMARY
+            echo "**$(echo "$all_findings" | wc -l) vulnerabilities found**" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Full Report ($(echo "$all_findings" | wc -l) findings)</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Severity | Package | Version | Vulnerability ID | Title |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|---------|---------|-----------------|-------|" >> $GITHUB_STEP_SUMMARY
+
+            # Sort by severity: CRITICAL > HIGH > MODERATE > LOW > NOTE
+            echo "$all_findings" | sort -t'|' -k1,1r | while IFS='|' read -r sev pkg ver adv title; do
+                echo "| $sev | $pkg | $ver | $adv | $title |" >> $GITHUB_STEP_SUMMARY
+            done
+
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
         fi
