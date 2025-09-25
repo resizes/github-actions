@@ -1,66 +1,81 @@
-name: "NuGet Security Report"
-description: "Restore .NET projects and report vulnerable NuGet packages"
-inputs:
-  dotnet-version:
-    description: "The .NET version to use"
-    default: "8.0.x"
+name: SecurityReport
 
-  project-path:
-    description: 'Path to scan for .csproj files'
-    required: false
-    default: './'
+on:
+  workflow_dispatch:
 
+jobs:
+  dotnet-security:
+    runs-on: ubuntu-latest
 
-runs:
-  using: "composite"
-  steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: ${{ inputs.dotnet-version }}
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
 
-    - name: Restore projects and capture warnings
-      shell: bash
-      run: |
-        echo "## 🛡 NuGet Warnings & Vulnerabilities" >> $GITHUB_STEP_SUMMARY
-        issues=0
+      - name: Find all .csproj files
+        id: find-projects
+        run: |
+          projects=$(find . -name '*.csproj')
+          echo "projects=$projects" >> $GITHUB_OUTPUT
 
-        # Find all .csproj files
-        projects=$(find "${{ inputs.project-path }}" -name '*.csproj')
+      - name: Restore projects (capture NU warnings/errors)
+        run: |
+          echo "## 🛡 NU Warnings & Errors" >> $GITHUB_STEP_SUMMARY
+          issues=0
 
-        for proj in $projects; do
-          echo "Restoring $proj..."
-          restore_output=$(dotnet restore "$proj" --ignore-failed-sources 2>&1 || true)
+          for proj in ${{ steps.find-projects.outputs.projects }}; do
+            echo "Restoring $proj..."
+            restore_output=$(dotnet restore "$proj" --ignore-failed-sources 2>&1 || true)
+            
+            # Capture all NU warnings/errors
+            nus=$(echo "$restore_output" | grep -E '^.*NU[0-9]{4}:' || true)
+            if [ -n "$nus" ]; then
+              issues=$((issues + $(echo "$nus" | wc -l)))
+              echo "### $proj" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "$nus" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          done
 
-          # Capture all NU warnings (NUxxxx)
-          nu_warnings=$(echo "$restore_output" | grep -E "NU[0-9]{4}" || true)
-          if [ -n "$nu_warnings" ]; then
-            count=$(echo "$nu_warnings" | wc -l)
-            issues=$((issues + count))
-            echo "### Warnings in $proj" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$nu_warnings" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
+      - name: Check for vulnerable NuGet packages
+        run: |
+          echo "## 🛡 Vulnerable NuGet Packages" >> $GITHUB_STEP_SUMMARY
+          issues=0
 
-          # Check for vulnerable packages
-          vuln_output=$(dotnet list "$proj" package --vulnerable 2>&1 || true)
-          vuln_lines=$(echo "$vuln_output" | grep -E 'Vulnerable packages|Top-level Package' || true)
-          if [ -n "$vuln_lines" ]; then
-            vuln_count=$(echo "$vuln_lines" | wc -l)
-            issues=$((issues + vuln_count))
-            echo "### Vulnerable packages in $proj" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$vuln_output" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-        done
+          for proj in ${{ steps.find-projects.outputs.projects }}; do
+            echo "Scanning $proj..."
+            vuln_output=$(dotnet list "$proj" package --vulnerable 2>&1 || true)
+            vuln_lines=$(echo "$vuln_output" | grep -E 'Top-level Package|Vulnerable packages' || true)
+            if [ -n "$vuln_lines" ]; then
+              issues=$((issues + $(echo "$vuln_lines" | wc -l)))
+              echo "### $proj" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "$vuln_output" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          done
 
-        if [ "$issues" -eq 0 ]; then
-          echo "✅ No NuGet warnings or vulnerable packages detected." >> $GITHUB_STEP_SUMMARY
-        else
-          echo "**$issues issues found across projects**" >> $GITHUB_STEP_SUMMARY
-        fi
+      - name: Run .NET analyzers
+        run: |
+          echo "## 🛡 Analyzer Warnings" >> $GITHUB_STEP_SUMMARY
+          for proj in ${{ steps.find-projects.outputs.projects }}; do
+            echo "Analyzing $proj..."
+            analyzer_output=$(dotnet build "$proj" /p:EnableNETAnalyzers=true /p:AnalysisMode=AllEnabledByDefault 2>&1 || true)
+            # Filter warnings/errors for security related rules (optional: refine patterns)
+            sec_warnings=$(echo "$analyzer_output" | grep -E 'CA|SCS|SEC' || true)
+            if [ -n "$sec_warnings" ]; then
+              echo "### $proj" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "$sec_warnings" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+      - name: Summary
+        run: |
+          echo "✅ Security scan completed. Check the summary above."
