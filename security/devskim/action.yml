@@ -31,12 +31,24 @@ runs:
         # Count total issues
         issues=$(jq '.runs[].results | length' ${{ inputs.output-file }})
         
-        echo "## 🛡 DevSkim Security Report" >> $GITHUB_STEP_SUMMARY
+        echo "## ⚔️ DevSkim Security Report" >> $GITHUB_STEP_SUMMARY
         if [ "$issues" -gt 0 ]; then
-          echo "**$issues issues found**" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          jq -r '.runs[].results[] | "\(.ruleId) | \(.level) | \(.message.text) | \(.locations[].physicalLocation.artifactLocation.uri)"' ${{ inputs.output-file }} >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "<details>" >> $GITHUB_STEP_SUMMARY
+          echo "<summary>**$issues issues found (click to expand)**</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Rule ID | Severity | Message | File |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|----------|---------|------|" >> $GITHUB_STEP_SUMMARY
+
+          # Loop over results and print as markdown table rows
+          jq -r '.runs[].results[] | 
+            [.ruleId, .level, .message.text, .locations[].physicalLocation.artifactLocation.uri] | 
+            @tsv' ${{ inputs.output-file }} | while IFS=$'\t' read -r rule level message file; do
+              # Make file path a link to GitHub
+              echo "| $rule | $level | $message | [${file}](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/${file}) |" >> $GITHUB_STEP_SUMMARY
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
         else
           echo "✅ No security issues detected." >> $GITHUB_STEP_SUMMARY
         fi
