@@ -58,30 +58,30 @@ runs:
         vuln_lines=$(echo "$vuln_output" | grep -E '^>' || true)
 
         if [ -n "$vuln_lines" ]; then
-        vuln_count=$(echo "$vuln_lines" | wc -l)
-        issues=$((issues + vuln_count))
-        echo "### Vulnerable packages in $proj" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "| Package | Resolved Version | Severity | Advisory |" >> $GITHUB_STEP_SUMMARY
-        echo "|---------|------------------|----------|----------|" >> $GITHUB_STEP_SUMMARY
-        while IFS= read -r line; do
-          pkg=$(echo "$line" | awk '{print $2}')
-          ver=$(echo "$line" | awk '{print $3}')
-          sev=$(echo "$line" | grep -oE '\[(.*?)\]' | sed 's/\[//;s/\]//')
-          adv=$(echo "$line" | grep -oE 'https?://[^ ]+' || echo "-")
-          echo "| $pkg | $ver | $sev | $adv |" >> $GITHUB_STEP_SUMMARY
-        done <<< "$vuln_lines"
-        echo "" >> $GITHUB_STEP_SUMMARY
-      fi
-
-
-        done
-
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "</details>" >> $GITHUB_STEP_SUMMARY
-
-        if [ "$issues" -eq 0 ]; then
-          echo "✅ No NuGet warnings or vulnerable packages detected." >> $GITHUB_STEP_SUMMARY
-        else
-          echo "**$issues issues found across projects**" >> $GITHUB_STEP_SUMMARY
+          vuln_count=$(echo "$vuln_lines" | wc -l)
+          issues=$((issues + vuln_count))
+          echo "### Vulnerable packages in $proj" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Package | Resolved Version | Severity | Advisory |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|------------------|----------|----------|" >> $GITHUB_STEP_SUMMARY
+          while IFS= read -r line; do
+            pkg=$(echo "$line" | awk '{print $2}')
+            ver=$(echo "$line" | awk '{print $3}')
+            sev=$(echo "$line" | grep -oE '\[(.*?)\]' | sed 's/\[//;s/\]//')
+            adv=$(echo "$line" | grep -oE 'https?://[^ ]+' || echo "-")
+            echo "| $pkg | $ver | $sev | $adv |" >> $GITHUB_STEP_SUMMARY
+          done <<< "$vuln_lines"
+          echo "" >> $GITHUB_STEP_SUMMARY
         fi
+
+
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$issues" -eq 0 ]; then
+            echo "✅ No NuGet warnings or vulnerable packages detected." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**$issues issues found across projects**" >> $GITHUB_STEP_SUMMARY
+          fi
