@@ -25,6 +25,7 @@ runs:
       shell: bash
       run: |
         echo "## 🛡 NuGet Warnings & Vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
         echo "<details><summary>Full Report (findings)</summary>" >> $GITHUB_STEP_SUMMARY
         issues=0
 
