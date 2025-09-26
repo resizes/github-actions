@@ -41,9 +41,9 @@ runs:
 
           # Loop over results and print as markdown table rows
           jq -r '.runs[].results[] | 
-            [.ruleId, .level, .message.text, .locations[].physicalLocation.artifactLocation.uri] | 
+            [.ruleId, .level, .message.text, .locations[].physicalLocation.artifactLocation.uri, .locations[].physicalLocation.region.startLine] | 
             @tsv' ${{ inputs.output-file }} | while IFS=$'\t' read -r rule level message file line; do
-              # Make file path a link to GitHub
+              # File column includes line number and clickable link
               echo "| $rule | $level | $message | [${file}:${line}](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/${file}#L${line}) |" >> $GITHUB_STEP_SUMMARY
           done
 
