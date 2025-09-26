@@ -50,25 +50,27 @@ runs:
             done <<< "$nu_warnings"
           fi
 
-          # Check for vulnerable packages
-          vuln_output=$(dotnet list "$proj" package --vulnerable 2>&1 || true)
-          vuln_lines=$(echo "$vuln_output" | grep -E '>' || true)
+        # Check for vulnerable packages
+        vuln_output=$(dotnet list "$proj" package --vulnerable 2>&1 || true)
+        vuln_lines=$(echo "$vuln_output" | grep -E '^>' || true)
 
-          if [ -n "$vuln_lines" ]; then
-            vuln_count=$(echo "$vuln_lines" | wc -l)
-            issues=$((issues + vuln_count))
-            echo "### Vulnerable packages in $proj" >> $GITHUB_STEP_SUMMARY
-            echo "| Package | Resolved Version | Severity | Advisory |" >> $GITHUB_STEP_SUMMARY
-            echo "|---------|------------------|----------|----------|" >> $GITHUB_STEP_SUMMARY
-            echo "$vuln_lines" | while IFS= read -r line; do
-              # Example format: > PackageName 1.2.3   [Vulnerable: Severity]   Advisory link
-              pkg=$(echo "$line" | awk '{print $2}')
-              ver=$(echo "$line" | awk '{print $3}')
-              sev=$(echo "$line" | grep -oE '\[(.*?)\]' | sed 's/\[//;s/\]//')
-              adv=$(echo "$line" | grep -oE 'https?://[^ ]+' || echo "-")
-              echo "| $pkg | $ver | $sev | $adv |" >> $GITHUB_STEP_SUMMARY
-            done
-          fi
+        if [ -n "$vuln_lines" ]; then
+          vuln_count=$(echo "$vuln_lines" | wc -l)
+          issues=$((issues + vuln_count))
+          echo "### Vulnerable packages in $proj" >> $GITHUB_STEP_SUMMARY
+          echo "| Package | Resolved Version | Severity | Advisory |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|------------------|----------|----------|" >> $GITHUB_STEP_SUMMARY
+
+          while IFS= read -r line; do
+            # Example: > Newtonsoft.Json   12.0.3   [High]   https://github.com/advisory
+            pkg=$(echo "$line" | awk '{print $2}')
+            ver=$(echo "$line" | awk '{print $3}')
+            sev=$(echo "$line" | grep -oE '\[(.*?)\]' | sed 's/\[//;s/\]//')
+            adv=$(echo "$line" | grep -oE 'https?://[^ ]+' || echo "-")
+            echo "| $pkg | $ver | $sev | $adv |" >> $GITHUB_STEP_SUMMARY
+          done <<< "$vuln_lines"
+        fi
+
         done
 
         echo "" >> $GITHUB_STEP_SUMMARY
