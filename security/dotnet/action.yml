@@ -10,7 +10,6 @@ inputs:
     required: false
     default: './'
 
-
 runs:
   using: "composite"
   steps:
@@ -26,7 +25,7 @@ runs:
       shell: bash
       run: |
         echo "## 🛡 NuGet Warnings & Vulnerabilities" >> $GITHUB_STEP_SUMMARY
-        echo "<details><summary>Full Report ($vulns findings)</summary>" >> $GITHUB_STEP_SUMMARY
+        echo "<details><summary>Full Report (findings)</summary>" >> $GITHUB_STEP_SUMMARY
         issues=0
 
         # Find all .csproj files
@@ -42,23 +41,36 @@ runs:
             count=$(echo "$nu_warnings" | wc -l)
             issues=$((issues + count))
             echo "### Warnings in $proj" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$nu_warnings" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "| Warning Code | Message |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------------|---------|" >> $GITHUB_STEP_SUMMARY
+            while IFS= read -r line; do
+              code=$(echo "$line" | grep -oE "NU[0-9]{4}" | head -n1)
+              msg=$(echo "$line" | sed -E "s/.*(NU[0-9]{4}):?//" | sed 's/|/\\|/g')
+              echo "| $code | $msg |" >> $GITHUB_STEP_SUMMARY
+            done <<< "$nu_warnings"
           fi
 
           # Check for vulnerable packages
           vuln_output=$(dotnet list "$proj" package --vulnerable 2>&1 || true)
-          vuln_lines=$(echo "$vuln_output" | grep -E 'Vulnerable packages|Top-level Package' || true)
+          vuln_lines=$(echo "$vuln_output" | grep -E '>' || true)
+
           if [ -n "$vuln_lines" ]; then
             vuln_count=$(echo "$vuln_lines" | wc -l)
             issues=$((issues + vuln_count))
             echo "### Vulnerable packages in $proj" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$vuln_output" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "| Package | Resolved Version | Severity | Advisory |" >> $GITHUB_STEP_SUMMARY
+            echo "|---------|------------------|----------|----------|" >> $GITHUB_STEP_SUMMARY
+            echo "$vuln_lines" | while IFS= read -r line; do
+              # Example format: > PackageName 1.2.3   [Vulnerable: Severity]   Advisory link
+              pkg=$(echo "$line" | awk '{print $2}')
+              ver=$(echo "$line" | awk '{print $3}')
+              sev=$(echo "$line" | grep -oE '\[(.*?)\]' | sed 's/\[//;s/\]//')
+              adv=$(echo "$line" | grep -oE 'https?://[^ ]+' || echo "-")
+              echo "| $pkg | $ver | $sev | $adv |" >> $GITHUB_STEP_SUMMARY
+            done
           fi
         done
+
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "</details>" >> $GITHUB_STEP_SUMMARY
 
