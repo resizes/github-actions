@@ -38,38 +38,42 @@ runs:
           # Capture all NU warnings (NUxxxx)
           nu_warnings=$(echo "$restore_output" | grep -E "NU[0-9]{4}" || true)
           if [ -n "$nu_warnings" ]; then
-            count=$(echo "$nu_warnings" | wc -l)
-            issues=$((issues + count))
-            echo "### Warnings in $proj" >> $GITHUB_STEP_SUMMARY
-            echo "| Warning Code | Message |" >> $GITHUB_STEP_SUMMARY
-            echo "|--------------|---------|" >> $GITHUB_STEP_SUMMARY
-            while IFS= read -r line; do
-              code=$(echo "$line" | grep -oE "NU[0-9]{4}" | head -n1)
-              msg=$(echo "$line" | sed -E "s/.*(NU[0-9]{4}):?//" | sed 's/|/\\|/g')
-              echo "| $code | $msg |" >> $GITHUB_STEP_SUMMARY
-            done <<< "$nu_warnings"
-          fi
+          count=$(echo "$nu_warnings" | wc -l)
+          issues=$((issues + count))
+          echo "### Warnings in $proj" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Warning Code | Message |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------------|---------|" >> $GITHUB_STEP_SUMMARY
+          while IFS= read -r line; do
+            code=$(echo "$line" | grep -oE "NU[0-9]{4}" | head -n1)
+            msg=$(echo "$line" | sed -E "s/.*(NU[0-9]{4}):?//" | sed 's/|/\\|/g')
+            echo "| $code | $msg |" >> $GITHUB_STEP_SUMMARY
+          done <<< "$nu_warnings"
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+
 
         # Check for vulnerable packages
         vuln_output=$(dotnet list "$proj" package --vulnerable 2>&1 || true)
         vuln_lines=$(echo "$vuln_output" | grep -E '^>' || true)
 
         if [ -n "$vuln_lines" ]; then
-          vuln_count=$(echo "$vuln_lines" | wc -l)
-          issues=$((issues + vuln_count))
-          echo "### Vulnerable packages in $proj" >> $GITHUB_STEP_SUMMARY
-          echo "| Package | Resolved Version | Severity | Advisory |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|------------------|----------|----------|" >> $GITHUB_STEP_SUMMARY
+        vuln_count=$(echo "$vuln_lines" | wc -l)
+        issues=$((issues + vuln_count))
+        echo "### Vulnerable packages in $proj" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Package | Resolved Version | Severity | Advisory |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------|------------------|----------|----------|" >> $GITHUB_STEP_SUMMARY
+        while IFS= read -r line; do
+          pkg=$(echo "$line" | awk '{print $2}')
+          ver=$(echo "$line" | awk '{print $3}')
+          sev=$(echo "$line" | grep -oE '\[(.*?)\]' | sed 's/\[//;s/\]//')
+          adv=$(echo "$line" | grep -oE 'https?://[^ ]+' || echo "-")
+          echo "| $pkg | $ver | $sev | $adv |" >> $GITHUB_STEP_SUMMARY
+        done <<< "$vuln_lines"
+        echo "" >> $GITHUB_STEP_SUMMARY
+      fi
 
-          while IFS= read -r line; do
-            # Example: > Newtonsoft.Json   12.0.3   [High]   https://github.com/advisory
-            pkg=$(echo "$line" | awk '{print $2}')
-            ver=$(echo "$line" | awk '{print $3}')
-            sev=$(echo "$line" | grep -oE '\[(.*?)\]' | sed 's/\[//;s/\]//')
-            adv=$(echo "$line" | grep -oE 'https?://[^ ]+' || echo "-")
-            echo "| $pkg | $ver | $sev | $adv |" >> $GITHUB_STEP_SUMMARY
-          done <<< "$vuln_lines"
-        fi
 
         done
 
