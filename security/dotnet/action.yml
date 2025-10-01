@@ -1,33 +1,11 @@
-name: "NuGet Security Report"
-description: "Restore .NET projects and report vulnerable NuGet packages"
-inputs:
-  dotnet-version:
-    description: "The .NET version to use"
-    default: "8.0.x"
-
-  project-path:
-    description: 'Path to scan for .csproj files'
-    required: false
-    default: './'
-
-runs:
-  using: "composite"
-  steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: ${{ inputs.dotnet-version }}
-
     - name: Restore projects and capture warnings
       shell: bash
       run: |
-        echo "## 🛡 NuGet Warnings & Vulnerabilities" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "<details><summary>Full Report (findings)</summary>" >> $GITHUB_STEP_SUMMARY
         issues=0
+        details_file=$(mktemp)
+
+        echo "## 🛡 NuGet Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
 
         # Find all .csproj files
         projects=$(find "${{ inputs.project-path }}" -name '*.csproj')
@@ -36,53 +14,56 @@ runs:
           echo "Restoring $proj..."
           restore_output=$(dotnet restore "$proj" --ignore-failed-sources 2>&1 || true)
 
-          # Capture all NU warnings (NUxxxx)
+          # Capture all NU warnings
           nu_warnings=$(echo "$restore_output" | grep -E "NU[0-9]{4}" || true)
           if [ -n "$nu_warnings" ]; then
-          count=$(echo "$nu_warnings" | wc -l)
-          issues=$((issues + count))
-          echo "### Warnings in $proj" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Warning Code | Message |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------------|---------|" >> $GITHUB_STEP_SUMMARY
-          while IFS= read -r line; do
-            code=$(echo "$line" | grep -oE "NU[0-9]{4}" | head -n1)
-            msg=$(echo "$line" | sed -E "s/.*(NU[0-9]{4}):?//" | sed 's/|/\\|/g')
-            echo "| $code | $msg |" >> $GITHUB_STEP_SUMMARY
-          done <<< "$nu_warnings"
-          echo "" >> $GITHUB_STEP_SUMMARY
-        fi
-
-
-        # Check for vulnerable packages
-        vuln_output=$(dotnet list "$proj" package --vulnerable 2>&1 || true)
-        vuln_lines=$(echo "$vuln_output" | grep -E '^>' || true)
-
-        if [ -n "$vuln_lines" ]; then
-          vuln_count=$(echo "$vuln_lines" | wc -l)
-          issues=$((issues + vuln_count))
-          echo "### Vulnerable packages in $proj" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Package | Resolved Version | Severity | Advisory |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|------------------|----------|----------|" >> $GITHUB_STEP_SUMMARY
-          while IFS= read -r line; do
-            pkg=$(echo "$line" | awk '{print $2}')
-            ver=$(echo "$line" | awk '{print $3}')
-            sev=$(echo "$line" | grep -oE '\[(.*?)\]' | sed 's/\[//;s/\]//')
-            adv=$(echo "$line" | grep -oE 'https?://[^ ]+' || echo "-")
-            echo "| $pkg | $ver | $sev | $adv |" >> $GITHUB_STEP_SUMMARY
-          done <<< "$vuln_lines"
-          echo "" >> $GITHUB_STEP_SUMMARY
-        fi
-
-
-          done
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$issues" -eq 0 ]; then
-            echo "✅ No NuGet warnings or vulnerable packages detected." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "**$issues issues found across projects**" >> $GITHUB_STEP_SUMMARY
+            count=$(echo "$nu_warnings" | wc -l)
+            issues=$((issues + count))
+            {
+              echo "### Warnings in $proj"
+              echo ""
+              echo "| Warning Code | Message |"
+              echo "|--------------|---------|"
+              while IFS= read -r line; do
+                code=$(echo "$line" | grep -oE "NU[0-9]{4}" | head -n1)
+                msg=$(echo "$line" | sed -E "s/.*(NU[0-9]{4}):?//" | sed 's/|/\\|/g')
+                echo "| $code | $msg |"
+              done <<< "$nu_warnings"
+              echo ""
+            } >> "$details_file"
           fi
+
+          # Vulnerable packages
+          vuln_output=$(dotnet list "$proj" package --vulnerable 2>&1 || true)
+          vuln_lines=$(echo "$vuln_output" | grep -E '^>' || true)
+
+          if [ -n "$vuln_lines" ]; then
+            vuln_count=$(echo "$vuln_lines" | wc -l)
+            issues=$((issues + vuln_count))
+            {
+              echo "### Vulnerable packages in $proj"
+              echo ""
+              echo "| Package | Resolved Version | Severity | Advisory |"
+              echo "|---------|------------------|----------|----------|"
+              while IFS= read -r line; do
+                pkg=$(echo "$line" | awk '{print $2}')
+                ver=$(echo "$line" | awk '{print $3}')
+                sev=$(echo "$line" | grep -oE '\[(.*?)\]' | sed 's/\[//;s/\]//')
+                adv=$(echo "$line" | grep -oE 'https?://[^ ]+' || echo "-")
+                echo "| $pkg | $ver | $sev | $adv |"
+              done <<< "$vuln_lines"
+              echo ""
+            } >> "$details_file"
+          fi
+        done
+
+        # Now that we know the total issues, write the <summary> with the count
+        if [ "$issues" -eq 0 ]; then
+          echo "✅ No NuGet warnings or vulnerable packages detected." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "<details><summary>**Full Report ($issues findings)**</summary>" >> $GITHUB_STEP_SUMMARY
+          cat "$details_file" >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**⚠️ $issues total issues found across all projects**" >> $GITHUB_STEP_SUMMARY
+        fi

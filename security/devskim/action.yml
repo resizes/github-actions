@@ -31,10 +31,10 @@ runs:
         # Count total issues
         issues=$(jq '.runs[].results | length' ${{ inputs.output-file }})
         
-        echo "## ⚔️ DevSkim Security Report" >> $GITHUB_STEP_SUMMARY
+        echo "## ⚔️ DevSkim Report" >> $GITHUB_STEP_SUMMARY
         if [ "$issues" -gt 0 ]; then
           echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>**$issues issues found (click to expand)**</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "<summary>**Full report ($issues findings)**</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Rule ID | Severity | Message | File |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|----------|---------|------|" >> $GITHUB_STEP_SUMMARY
