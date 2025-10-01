@@ -84,7 +84,8 @@ runs:
         if [ "$issues" -eq 0 ]; then
           echo "✅ No NuGet warnings or vulnerable packages detected." >> $GITHUB_STEP_SUMMARY
         else
-          echo "<details><summary>**Full Report ($issues findings)**</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "**$issues issues found**" >> $GITHUB_STEP_SUMMARY
+          echo "<details><summary>Full Report ($issues findings)</summary>" >> $GITHUB_STEP_SUMMARY
           cat "$details_file" >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

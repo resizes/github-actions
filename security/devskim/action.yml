@@ -33,8 +33,9 @@ runs:
         
         echo "## ⚔️ DevSkim Report" >> $GITHUB_STEP_SUMMARY
         if [ "$issues" -gt 0 ]; then
+          echo "**$issues issues found**" >> $GITHUB_STEP_SUMMARY
           echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>**Full report ($issues findings)**</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "<summary>Full report ($issues findings)</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Rule ID | Severity | Message | File |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|----------|---------|------|" >> $GITHUB_STEP_SUMMARY
