@@ -20,6 +20,9 @@ runs:
         echo '```' >> $GITHUB_STEP_SUMMARY
         cat checkov_output.txt >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
+      
+      shell: bash
+
 
     # - name: Upload SARIF file
     #   if: success() || failure()
