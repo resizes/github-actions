@@ -1,39 +1,28 @@
-name: checkov
+name: "Checkov Composite Action"
+description: "Run Checkov and write results to GitHub summary"
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-on:
-  push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
+    - name: Run Checkov
+      id: checkov
+      uses: bridgecrewio/checkov-action@v12
+      with:
+        output_format: cli,sarif
+        output_file_path: checkov_output.txt,results.sarif
+        soft_fail: true
 
-jobs:
-  scan:
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
+    - name: Add Checkov results to GitHub summary
+      run: |
+        echo "### Checkov Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        cat checkov_output.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Run Checkov
-        id: checkov
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          output_format: cli,sarif
-          output_file_path: checkov_output.txt,results.sarif
-          soft_fail: true  # Continue workflow even if there are failures
-
-      - name: Add Checkov results to GitHub summary
-        run: |
-          echo "### Checkov Security Scan Results" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat checkov_output.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-      # - name: Upload SARIF file
-      #   if: success() || failure()
-      #   uses: github/codeql-action/upload-sarif@v2
-      #   with:
-      #     sarif_file: results.sarif
+    # - name: Upload SARIF file
+    #   if: success() || failure()
+    #   uses: github/codeql-action/upload-sarif@v2
+    #   with:
+    #     sarif_file: results.sarif
