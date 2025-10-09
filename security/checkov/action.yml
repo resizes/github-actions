@@ -1,0 +1,69 @@
+name: "Checkov Composite Action"
+description: "Run Checkov and write results to GitHub summary"
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run Checkov
+      id: checkov
+      uses: bridgecrewio/checkov-action@v12
+      with:
+        output_format: cli,sarif
+        output_file_path: checkov_output.txt,results.sarif
+        soft_fail: true
+
+    - name: Format Checkov results for GitHub summary
+      shell: bash
+      run: |
+        echo "### 🧪 Checkov Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Split Checkov output into individual result blocks
+        csplit -s -f chk_ checkov_output.txt '/^Check: /' '{*}' || true
+
+        # Group them into failed and passed
+        mkdir -p failed passed
+        for file in chk_*; do
+          grep -q "FAILED" "$file" && mv "$file" failed/ || mv "$file" passed/ || true
+        done
+
+        FAILED_COUNT=$(ls failed | wc -l | tr -d ' ')
+        PASSED_COUNT=$(ls passed | wc -l | tr -d ' ')
+
+        echo "**Summary:** ✅ $PASSED_COUNT passed, ❌ $FAILED_COUNT failed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        echo "#### ❌ Failed Checks" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ "$FAILED_COUNT" -gt 0 ]; then
+          for f in failed/*; do
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat "$f" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          done
+        else
+          echo "_No failed checks 🎉_" >> $GITHUB_STEP_SUMMARY
+        fi
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "<details><summary>✅ Passed Checks ($PASSED_COUNT)</summary>" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ "$PASSED_COUNT" -gt 0 ]; then
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep "Check: " passed/* | sed 's/^.*Check:/Check:/' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        else
+          echo "_No passed checks found._" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "</details>" >> $GITHUB_STEP_SUMMARY
+
+    # - name: Upload SARIF file
+    #   if: success() || failure()
+    #   uses: github/codeql-action/upload-sarif@v2
+    #   with:
+    #     sarif_file: results.sarif
