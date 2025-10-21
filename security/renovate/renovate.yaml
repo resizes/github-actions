@@ -23,11 +23,6 @@ on:
         required: false
         type: string
         default: 'renovate.json'
-      slack_channel:
-        description: 'Slack channel to post notifications'
-        required: false
-        type: string
-        default: '#devops-peer-review'
       runner:
         description: 'GitHub Actions runner to use'
         required: false
