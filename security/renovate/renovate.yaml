@@ -1,0 +1,106 @@
+name: Renovate
+
+on:
+  workflow_call:
+    inputs:
+      log_level:
+        description: 'Log level for Renovate'
+        required: false
+        type: string
+        default: 'info'
+      dry_run:
+        description: 'Dry run (no PRs will be created)'
+        required: false
+        type: boolean
+        default: false
+      force_refresh:
+        description: 'Force refresh all dependencies'
+        required: false
+        type: boolean
+        default: false
+      renovate_config_file:
+        description: 'Path to Renovate configuration file'
+        required: false
+        type: string
+        default: 'renovate.json'
+      slack_channel:
+        description: 'Slack channel to post notifications'
+        required: false
+        type: string
+        default: '#devops-peer-review'
+      runner:
+        description: 'GitHub Actions runner to use'
+        required: false
+        type: string
+        default: 'actions-runners'
+
+env:
+  LOG_LEVEL: ${{ inputs.log_level }}
+  RENOVATE_DRY_RUN: ${{ inputs.dry_run }}
+
+jobs:
+  renovate:
+    runs-on: ${{ inputs.runner }}
+    name: Renovate Dependencies
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      
+      - name: Install GitHub CLI
+        run: |
+          sudo apt update
+          sudo apt install gh -y
+
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@v43.0.18
+        with:
+          configurationFile: ${{ inputs.renovate_config_file }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          LOG_LEVEL: ${{ env.LOG_LEVEL }}
+          RENOVATE_DRY_RUN: ${{ env.RENOVATE_DRY_RUN }}
+          RENOVATE_FORCE: ${{ inputs.force_refresh }}
+          # Enable autodiscover to find the current repository
+          RENOVATE_AUTODISCOVER: true
+          RENOVATE_AUTODISCOVER_FILTER: ${{ github.repository }}
+          RENOVATE_GIT_AUTHOR: 'Renovate Bot <bot@renovateapp.com>'
+          
+      - name: Get Renovate PRs
+        id: get-prs
+        if: always()
+        run: |
+          # Get PRs created by Renovate Bot in the last 7 days
+          PRS=$(gh pr list \
+            --author "app/github-actions" \
+            --limit 20 \
+            --json number,title,url,createdAt,state \
+            --jq 'map(select(.createdAt >= (now - 604800 | strftime("%Y-%m-%dT%H:%M:%SZ")))) | .[] | "• <\(.url)|\(.title)> (#\(.number)) - \(.state)"' \
+              | sed 's/OPEN/🟢 Open/g; s/MERGED/🟣 Merged/g; s/CLOSED/⚫ Closed/g')
+            
+          # Count PRs - ensure we always get a valid number
+          if [ -z "$PRS" ]; then
+            PR_COUNT="0"
+          else
+            PR_COUNT=$(echo "$PRS" | grep -c .)
+            if [ -z "$PR_COUNT" ]; then
+              PR_COUNT="0"
+            fi
+          fi
+            
+          # Format the PR list (escape newlines for JSON)
+          if [ -n "$PRS" ]; then
+            PR_LIST=$(echo "$PRS" | sed ':a;N;$!ba;s/\n/\\n/g')
+          else
+            PR_LIST="No PRs found in the last 7 days."
+          fi
+            
+          # Set outputs
+          echo "pr_list<<EOF" >> $GITHUB_OUTPUT
+          echo "$PR_LIST" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "pr_count=$PR_COUNT" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
+      # - name: Post text to a Discord channel
