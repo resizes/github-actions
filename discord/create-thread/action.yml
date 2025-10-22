@@ -1,5 +1,5 @@
-name: "Checkov Composite Action"
-description: "Run Checkov and write results to GitHub summary"
+name: "Create Discord Thread"
+description: "Create a new thread in a Discord channel"
 
 inputs:
   thread_name:
