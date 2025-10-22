@@ -20,15 +20,12 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Post message in the created thread
+    - name: Prepare message payload
       shell: bash
       env:
-        DISCORD_TOKEN: ${{ inputs.discord_bot_token }}
+        CONTENT: ${{ inputs.message_content }}
+        EMBEDS: ${{ inputs.message_embeds }}
       run: |
-        # Read inputs into shell variables
-        CONTENT='${{ inputs.message_content }}'
-        EMBEDS='${{ inputs.message_embeds }}'
-
         # Build JSON payload: include "content" only if it's not empty
         PAYLOAD="{"
         FIRST=true
@@ -47,7 +44,11 @@ runs:
         fi
 
         PAYLOAD="$PAYLOAD}"
-
+    - name: Post message to Discord channel
+      env:
+        DISCORD_TOKEN: ${{ inputs.discord_bot_token }}
+      shell: bash
+      run: |
         # Post the message
         MESSAGE_RESPONSE=$(curl -s -X POST "https://discord.com/api/v10/channels/${{ inputs.discord_channel_id }}/messages" \
           -H "Authorization: Bot $DISCORD_TOKEN" \
