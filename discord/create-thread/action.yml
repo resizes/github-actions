@@ -20,8 +20,8 @@ runs:
     - name: Send request to Discord to create a thread
       shell: bash
       env:
-        DISCORD_TOKEN: ${{ inputs.DISCORD_BOT_TOKEN }}
-        CHANNEL_ID: ${{ inputs.DISCORD_CHANNEL_SALES_ID }}
+        DISCORD_TOKEN: ${{ inputs.discord_bot_token }}
+        CHANNEL_ID: ${{ inputs.discord_channel_id }}
         THREAD_NAME: ${{ inputs.thread_name }}
       run: |
         # Create the thread and capture the response
