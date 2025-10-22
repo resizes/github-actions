@@ -12,8 +12,11 @@ inputs:
 
   message_content:
     description: "Content of the message to post"
-    default: "Hello, this is a default message."
-    
+    default: ""
+
+  message_embeds:
+    description: "Embeds to include in the message (JSON format)"  
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -22,12 +25,33 @@ runs:
       env:
         DISCORD_TOKEN: ${{ inputs.discord_bot_token }}
       run: |
-        # Post a message in the thread mentioning everyone
-        MESSAGE_RESPONSE=$(curl -X POST "https://discord.com/api/v10/channels/${{ inputs.discord_channel_id }}/messages" \
+        # Read inputs into shell variables
+        CONTENT='${{ inputs.message_content }}'
+        EMBEDS='${{ inputs.message_embeds }}'
+
+        # Build JSON payload: include "content" only if it's not empty
+        PAYLOAD="{"
+        FIRST=true
+
+        if [ -n "$CONTENT" ]; then
+          # Note: basic insertion; if content may contain quotes/newlines consider additional escaping
+          PAYLOAD="$PAYLOAD\"content\": \"$CONTENT\""
+          FIRST=false
+        fi
+
+        if [ -n "$EMBEDS" ] && [ "$EMBEDS" != "null" ]; then
+          if [ "$FIRST" = false ]; then
+            PAYLOAD="$PAYLOAD, "
+          fi
+          PAYLOAD="$PAYLOAD\"embeds\": $EMBEDS"
+        fi
+
+        PAYLOAD="$PAYLOAD}"
+
+        # Post the message
+        MESSAGE_RESPONSE=$(curl -s -X POST "https://discord.com/api/v10/channels/${{ inputs.discord_channel_id }}/messages" \
           -H "Authorization: Bot $DISCORD_TOKEN" \
           -H "Content-Type: application/json" \
-          -d "{
-            \"content\": \"${{ inputs.message_content }}\"
-          }")
+          -d "$PAYLOAD")
         
         echo "Message posting response: $MESSAGE_RESPONSE"
