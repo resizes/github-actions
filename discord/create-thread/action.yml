@@ -14,14 +14,20 @@ inputs:
     description: "Discord channel ID where the thread will be created"
     default: "false"
 
+outputs:
+  thread_id:
+    description: "ID of the created Discord thread"
+    value: ${{ steps.create_thread.outputs.thread_id }}
+
 runs:
   using: "composite"
   steps:
     - name: Send request to Discord to create a thread
+      id: create_thread
       shell: bash
       env:
-        DISCORD_TOKEN: ${{ inputs.DISCORD_BOT_TOKEN }}
-        CHANNEL_ID: ${{ inputs.DISCORD_CHANNEL_SALES_ID }}
+        DISCORD_TOKEN: ${{ inputs.discord_bot_token }}
+        CHANNEL_ID: ${{ inputs.discord_channel_id }}
         THREAD_NAME: ${{ inputs.thread_name }}
       run: |
         # Create the thread and capture the response
@@ -48,12 +54,5 @@ runs:
 
         echo "Thread created successfully with ID: $THREAD_ID"
 
-        # Post a message in the thread mentioning everyone
-        MESSAGE_RESPONSE=$(curl -X POST "https://discord.com/api/v10/channels/$THREAD_ID/messages" \
-          -H "Authorization: Bot $DISCORD_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d "{
-            \"content\": \"@here Weekly sales update is ready! 🎉\"
-          }")
-        
-        echo "Message posting response: $MESSAGE_RESPONSE"
+        # Expose thread_id as the step output for the composite action
+        echo "thread_id=$THREAD_ID" >> $GITHUB_OUTPUT
