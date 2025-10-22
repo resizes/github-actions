@@ -1,0 +1,33 @@
+name: "Post Discord Message"
+description: "Post a message in a Discord channel"
+
+inputs:
+  discord_channel_id:
+    description: "Discord channel ID where the message will be posted"
+    default: "false"
+
+  discord_bot_token:
+    description: "Discord bot token with permissions to post messages"
+    default: "."
+
+  message_content:
+    description: "Content of the message to post"
+    default: "Hello, this is a default message."
+    
+runs:
+  using: "composite"
+  steps:
+    - name: Post message in the created thread
+      shell: bash
+      env:
+        DISCORD_TOKEN: ${{ inputs.discord_bot_token }}
+      run: |
+        # Post a message in the thread mentioning everyone
+        MESSAGE_RESPONSE=$(curl -X POST "https://discord.com/api/v10/channels/${{ inputs.discord_channel_id }}/messages" \
+          -H "Authorization: Bot $DISCORD_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"content\": \"${{ inputs.message_content }}\"
+          }")
+        
+        echo "Message posting response: $MESSAGE_RESPONSE"
