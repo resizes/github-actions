@@ -1,0 +1,59 @@
+name: "Checkov Composite Action"
+description: "Run Checkov and write results to GitHub summary"
+
+inputs:
+  thread_name:
+    description: "Name of the Discord thread to be created"
+    default: "Default Thread Name"
+
+  discord_bot_token:
+    description: "Discord bot token with permissions to create threads"
+    default: "."
+
+  discord_channel_id:
+    description: "Discord channel ID where the thread will be created"
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Send request to Discord to create a thread
+      shell: bash
+      env:
+        DISCORD_TOKEN: ${{ inputs.DISCORD_BOT_TOKEN }}
+        CHANNEL_ID: ${{ inputs.DISCORD_CHANNEL_SALES_ID }}
+        THREAD_NAME: ${{ inputs.thread_name }}
+      run: |
+        # Create the thread and capture the response
+        THREAD_RESPONSE=$(curl -X POST "https://discord.com/api/v10/channels/$CHANNEL_ID/threads" \
+          -H "Authorization: Bot $DISCORD_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"name\": \"$THREAD_NAME\",
+            \"type\": 11,
+            \"auto_archive_duration\": 1440
+          }")
+
+        # Debug the response
+        echo "Thread creation response: $THREAD_RESPONSE"
+
+        # Extract the thread ID from the response
+        THREAD_ID=$(echo "$THREAD_RESPONSE" | jq -r '.id')
+        
+        # Check if thread creation was successful
+        if [ "$THREAD_ID" = "null" ] || [ -z "$THREAD_ID" ]; then
+          echo "ERROR: Failed to create thread. Response: $THREAD_RESPONSE"
+          exit 1
+        fi
+
+        echo "Thread created successfully with ID: $THREAD_ID"
+
+        # Post a message in the thread mentioning everyone
+        MESSAGE_RESPONSE=$(curl -X POST "https://discord.com/api/v10/channels/$THREAD_ID/messages" \
+          -H "Authorization: Bot $DISCORD_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"content\": \"@here Weekly sales update is ready! 🎉\"
+          }")
+        
+        echo "Message posting response: $MESSAGE_RESPONSE"
