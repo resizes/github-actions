@@ -1,5 +1,5 @@
-name: "Create Discord Thread"
-description: "Create a new thread in a Discord channel"
+name: "Build and Push Docker Image to ECR"
+description: "Build and push a Docker image to Amazon ECR using AWS OIDC role"
 
 inputs:
   aws_region:
