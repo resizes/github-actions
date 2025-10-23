@@ -1,0 +1,34 @@
+name: "Link Workflow with Deployment"
+description: "Link a GitHub Actions workflow with a deployment in Dash"
+
+inputs:
+  deployment_id:
+    description: "ID of the deployment to be linked"
+    default: ""
+
+  workflow_run_id:
+    description: "ID of the workflow run to be linked"
+    default: ""
+
+  webhooks_url_listener:
+    description: "Webhook URL listener for Discord events"
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Send event to link workflow with deployment
+      shell: bash
+      env:
+        DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+        WORKFLOW_RUN_ID: ${{ inputs.workflow_run_id }}
+        WEBHOOKS_URL_LISTENER: ${{ inputs.webhooks_url_listener }}
+      run: |
+        curl -X POST \
+          -H "Content-Type: application/json" \
+          -H "x-github-event: workflow_link" \
+          -d '{
+              "deployment_id": "$DEPLOYMENT_ID",
+              "workflow_run_id": "$WORKFLOW_RUN_ID"   
+          }' \
+        $WEBHOOKS_URL_LISTENER
