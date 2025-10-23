@@ -27,8 +27,8 @@ runs:
         curl -X POST \
           -H "Content-Type: application/json" \
           -H "x-github-event: workflow_link" \
-          -d '{
-              "deployment_id": "$DEPLOYMENT_ID",
-              "workflow_run_id": "$WORKFLOW_RUN_ID"   
-          }' \
-        $WEBHOOKS_URL_LISTENER
+          -d "{ 
+              \"deployment_id\": \"$DEPLOYMENT_ID\",
+              \"workflow_run_id\": \"$WORKFLOW_RUN_ID\" 
+            }" \
+          "$WEBHOOKS_URL_LISTENER"
