@@ -1,0 +1,39 @@
+name: "Build and Push Docker Image to ECR"
+description: "Build and push a Docker image to Amazon ECR using AWS OIDC role"
+
+inputs:
+  aws_region:
+    description: "AWS region for ECR"
+    required: true
+  
+  ecr_registry:
+    description: "ECR registry URL"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - uses: alexellis/arkade-get@master
+      with:
+        helm: latest
+
+    - name: configure aws credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws_oidc_role }}
+        aws-region: ${{ inputs.aws_region }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Package and push helm chart to Amazon ECR
+      shell: bash
+      run: |
+        helm package ./helm
+        NAME=$(cat ./helm/Chart.yaml | grep name: | awk '{print $2}')
+        VERSION=$(cat ./helm/Chart.yaml | grep version: | awk '{print $2}')
+        helm push $NAME-$VERSION.tgz oci://${{ inputs.ecr_registry }}
