@@ -1,0 +1,60 @@
+
+name: "Update Deployment in GitHub Repository"
+description: "Update a deployment in a GitHub repository with a new Docker image tag using a GitHub App"
+
+inputs:
+  github_app_id:
+    description: "GitHub App ID with access to the target repository"
+  
+  github_app_private_key:
+    description: "GitHub App private key in PEM format"
+
+  github_repository_owner:
+    description: "Owner of the GitHub App (user or organization)"
+  
+  github_repository:
+    description: "Target GitHub repository to update"
+  
+  docker_image_tag:
+    description: "Tag for the Docker image"
+  
+  helm_tag_location:
+    description: "Path to the Helm chart value to update the image tag"
+  
+  values_file_path:
+    description: "Path to the Helm values.yaml file"
+
+runs:
+  using: "composite"
+  steps:
+    - uses: alexellis/arkade-get@master
+      with:
+        yq: latest
+
+    - uses: actions/create-github-app-token@v2
+      id: app-token
+      with:
+        app-id: ${{ inputs.github_app_id }}
+        private-key: ${{ inputs.github_app_private_key }}
+        owner: ${{ inputs.github_repository_owner }}
+        repositories: |
+          ${{ inputs.github_repository }}
+
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.github_repository_owner }}/${{ inputs.github_repository }}
+        token: ${{ steps.app-token.outputs.token }}
+        persist-credentials: false
+        path: ${{ inputs.github_repository }}
+
+    - name: Update Deployment
+      shell: bash
+      run: |
+        cd ${{ inputs.github_repository }}
+        yq -i '${{ inputs.helm_tag_location }} = "${{ inputs.docker_image_tag }}"' ${{ inputs.values_file_path }}
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git remote set-url origin https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/${{ inputs.github_repository_owner }}/${{ inputs.github_repository }}.git
+        git add .
+        git commit -m "Updating image tag to ${{ inputs.docker_image_tag }}" || echo "No changes to commit"
+        git push origin HEAD

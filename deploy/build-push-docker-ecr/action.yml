@@ -1,0 +1,45 @@
+name: "Build and Push Docker Image to ECR"
+description: "Build and push a Docker image to Amazon ECR using AWS OIDC role"
+
+inputs:
+  aws_region:
+    description: "AWS region for ECR"
+  
+  aws_oidc_role:
+    description: "AWS OIDC role to assume"
+
+  ecr_repository:
+    description: "ECR repository name"
+
+  docker_platforms:
+    description: "Docker platforms to build for"
+    default: "linux/amd64,linux/arm64"
+  
+  docker_image_tag:
+    description: "Tag for the Docker image"
+  
+  dockerfile_path:
+    description: "Path to the Dockerfile"
+    default: "."
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: configure aws credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws_oidc_role }}
+        aws-region: ${{ inputs.aws_region }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push client docker image to Amazon ECR
+      shell: bash
+      run: |
+        docker buildx create --use
+        docker buildx build --platform ${{ inputs.docker_platforms }} --push -t ${{ inputs.ecr_repository }}:${{ inputs.docker_image_tag }} ${{ inputs.dockerfile_path }}
