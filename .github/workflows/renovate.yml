@@ -28,6 +28,10 @@ on:
         required: false
         type: string
         default: 'actions-runners'
+      github_token:
+        description: 'GitHub Personal Access Token (PAT)'
+        required: true
+        type: string
 
 env:
   LOG_LEVEL: ${{ inputs.log_level }}
@@ -51,7 +55,7 @@ jobs:
         uses: renovatebot/github-action@v43.0.18
         with:
           configurationFile: ${{ inputs.renovate_config_file }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ inputs.github_token }}
         env:
           LOG_LEVEL: ${{ env.LOG_LEVEL }}
           RENOVATE_DRY_RUN: ${{ env.RENOVATE_DRY_RUN }}
@@ -96,6 +100,6 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
           echo "pr_count=$PR_COUNT" >> $GITHUB_OUTPUT
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ inputs.github_token }}
   
       # - name: Post text to a Discord channel
