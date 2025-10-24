@@ -28,11 +28,22 @@ on:
         required: false
         type: string
         default: 'actions-runners'
-      github_token:
-        description: 'GitHub Personal Access Token (PAT)'
+      github_app_id:
+        description: 'GitHub App ID'
         required: true
         type: string
-
+      github_app_private_key:
+        description: 'GitHub App private key (in .pem format)'
+        required: true
+        type: string
+      owner:
+        description: 'Owner of the repository'
+        required: true
+        type: string
+      repositories:
+        description: 'Repositories to be applied the changes to'
+        required: true
+        type: string
 env:
   LOG_LEVEL: ${{ inputs.log_level }}
   RENOVATE_DRY_RUN: ${{ inputs.dry_run }}
@@ -50,6 +61,15 @@ jobs:
         run: |
           sudo apt update
           sudo apt install gh -y
+
+      - name: Create GitHub App Token
+        id: create-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ inputs.github_app_id }}
+          private-key: ${{ inputs.github_app_private_key }}
+          owner: ${{ inputs.owner }}
+          repositories: ${{ inputs.repositories }}
 
       - name: Self-hosted Renovate
         uses: renovatebot/github-action@v43.0.18
