@@ -21,6 +21,10 @@ inputs:
   dockerfile_path:
     description: "Path to the Dockerfile"
     default: "."
+  
+  env_vars:
+    description: "Environment variables to pass during the Docker build process"
+    default: ""
 
 runs:
   using: "composite"
@@ -37,6 +41,11 @@ runs:
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Create .env file
+      shell: bash
+      run: |
+        echo "${{ inputs.env_vars }}" > .env
 
     - name: Build, tag, and push client docker image to Amazon ECR
       shell: bash
