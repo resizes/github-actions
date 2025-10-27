@@ -67,7 +67,7 @@ jobs:
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ inputs.github_app_id }}
-          private-key: ${{ inputs.github_app_private_key }}
+          private-key: ${{ secrets.github_app_private_key }}
           owner: ${{ inputs.owner }}
           repositories: ${{ inputs.repositories }}
 
