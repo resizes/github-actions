@@ -75,7 +75,7 @@ jobs:
         uses: renovatebot/github-action@v43.0.18
         with:
           configurationFile: ${{ inputs.renovate_config_file }}
-          token: ${{ inputs.github_token }}
+          token: ${{ steps.create-token.outputs.token }}
         env:
           LOG_LEVEL: ${{ env.LOG_LEVEL }}
           RENOVATE_DRY_RUN: ${{ env.RENOVATE_DRY_RUN }}
