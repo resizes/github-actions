@@ -44,7 +44,6 @@ on:
       github_app_private_key:
         description: 'GitHub App private key (in .pem format)'
         required: true
-        type: string
 env:
   LOG_LEVEL: ${{ inputs.log_level }}
   RENOVATE_DRY_RUN: ${{ inputs.dry_run }}
