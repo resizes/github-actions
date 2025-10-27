@@ -32,16 +32,17 @@ on:
         description: 'GitHub App ID'
         required: true
         type: string
-      github_app_private_key:
-        description: 'GitHub App private key (in .pem format)'
-        required: true
-        type: string
       owner:
         description: 'Owner of the repository'
         required: true
         type: string
       repositories:
         description: 'Repositories to be applied the changes to'
+        required: true
+        type: string
+    secrets:
+      github_app_private_key:
+        description: 'GitHub App private key (in .pem format)'
         required: true
         type: string
 env:
