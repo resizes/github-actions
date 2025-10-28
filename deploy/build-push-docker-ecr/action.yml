@@ -20,7 +20,7 @@ inputs:
   
   dockerfile_path:
     description: "Path to the Dockerfile"
-    default: "."
+    default: "Dockerfile"
   
   env_vars:
     description: "Environment variables to pass during the Docker build process"
@@ -51,4 +51,4 @@ runs:
       shell: bash
       run: |
         docker buildx create --use
-        docker buildx build --platform ${{ inputs.docker_platforms }} --push -t ${{ inputs.ecr_repository }}:${{ inputs.docker_image_tag }} ${{ inputs.dockerfile_path }}
+        docker buildx build --platform ${{ inputs.docker_platforms }} --push -t ${{ inputs.ecr_repository }}:${{ inputs.docker_image_tag }} . -f ${{ inputs.dockerfile_path }}
