@@ -44,6 +44,13 @@ on:
       github_app_private_key:
         description: 'GitHub App private key (in .pem format)'
         required: true
+      renovate_update_discord_channel_id:
+        description: 'Discord channel ID where message will be updated to'
+        required: true
+      discord_bot_token:
+        description: 'Discord bot token for auth'
+        required: true
+
 env:
   LOG_LEVEL: ${{ inputs.log_level }}
   RENOVATE_DRY_RUN: ${{ inputs.dry_run }}
@@ -122,4 +129,25 @@ jobs:
         env:
           GH_TOKEN: ${{ inputs.github_token }}
   
-      # - name: Post text to a Discord channel
+      - name: Building a message
+        run: |
+          COLOR="65280"  # Green for success
+          TITLE="Test message"
+          DESCRIPTION="🚀 **This is a test**\n\n"
+
+          EMBEDS_PAYLOAD="[{
+              \"title\": \"$TITLE\",
+              \"description\": \"$DESCRIPTION\",
+              \"color\": $COLOR
+            }]"
+          echo "EMBEDS_PAYLOAD<<EOF" >> $GITHUB_ENV
+          # here we can place the command that will generate multi-line text
+          echo $EMBEDS_PAYLOAD >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+  
+      - name: Post text to a Discord channel
+        uses: resizes/github-actions/discord/post-message@v1
+        with:
+          discord_channel_id: ${{ secrets.renovate_update_discord_channel_id }}
+          discord_bot_token: ${{ secrets.discord_bot_token }}
+          message_embeds: ${{ env.EMBEDS_PAYLOAD }}
