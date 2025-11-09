@@ -44,12 +44,6 @@ on:
       github_app_private_key:
         description: 'GitHub App private key (in .pem format)'
         required: true
-      renovate_update_discord_channel_id:
-        description: 'Discord channel ID where message will be updated to'
-        required: true
-      discord_bot_token:
-        description: 'Discord bot token for auth'
-        required: true
 
 env:
   LOG_LEVEL: ${{ inputs.log_level }}
