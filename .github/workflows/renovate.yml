@@ -105,7 +105,7 @@ jobs:
         run: |
           # Get PRs created by Renovate Bot in the last 7 days
           PRS=$(gh pr list \
-            --author "app/resizes-renovate" \
+            --author "resizes-renovate[bot]" \
             --limit 20 \
             --json number,title,url,createdAt,state \
             --jq 'map(select(.createdAt >= (now - 604800 | strftime("%Y-%m-%dT%H:%M:%SZ")))) | .[] | "• <\(.url)|\(.title)> (#\(.number)) - \(.state)"' \
