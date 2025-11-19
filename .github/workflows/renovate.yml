@@ -40,6 +40,15 @@ on:
         description: 'Repositories to be applied the changes to'
         required: true
         type: string
+
+    outputs:
+      pr_count:
+        description: "Number of Renovate PRs found"
+        value: ${{ jobs.renovate.outputs.pr_count }}
+      pr_list:
+        description: "List of Renovate PRs"
+        value: ${{ jobs.renovate.outputs.pr_list }}
+
     secrets:
       github_app_private_key:
         description: 'GitHub App private key (in .pem format)'
@@ -52,6 +61,10 @@ env:
 jobs:
   renovate:
     runs-on: ${{ inputs.runner }}
+    outputs:
+      pr_count: ${{ steps.get-prs.outputs.pr_count }}
+      pr_list: ${{ steps.get-prs.outputs.pr_list }}
+
     name: Renovate Dependencies
     
     steps:
@@ -92,7 +105,7 @@ jobs:
         run: |
           # Get PRs created by Renovate Bot in the last 7 days
           PRS=$(gh pr list \
-            --author "app/github-actions" \
+            --author "resizes-renovate[bot]" \
             --limit 20 \
             --json number,title,url,createdAt,state \
             --jq 'map(select(.createdAt >= (now - 604800 | strftime("%Y-%m-%dT%H:%M:%SZ")))) | .[] | "• <\(.url)|\(.title)> (#\(.number)) - \(.state)"' \
@@ -121,4 +134,11 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
           echo "pr_count=$PR_COUNT" >> $GITHUB_OUTPUT
         env:
-          GH_TOKEN: ${{ inputs.github_token }}
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+
+      - name: Debug PR outputs
+        if: always()
+        run: |
+          echo "PR Count: ${{ steps.get-prs.outputs.pr_count }}"
+          echo -e "PR List:\n${{ steps.get-prs.outputs.pr_list }}"
+
