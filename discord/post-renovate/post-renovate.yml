@@ -1,0 +1,45 @@
+name: "Send Renovate Discord Message"
+description: "Send a Discord embed when Renovate creates PRs"
+
+inputs:
+  pr_count:
+    description: "Number of PRs created"
+    required: true
+  repository:
+    description: "Repository full name (e.g. org/repo)"
+    required: true
+  discord_channel_id:
+    description: "Discord channel ID"
+    required: true
+  discord_bot_token:
+    description: "Discord bot token"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Prepare Discord embeds
+      shell: bash
+      run: |
+        COLOR="65280"  # Green
+        TITLE="Renovate PRs created!"
+        DESCRIPTION="**Renovate PRs were created**\n\n"
+        DESCRIPTION+="**Repository:** [${{ inputs.repository }}](https://github.com/${{ inputs.repository }}) \n"
+        DESCRIPTION+="**PR Count:** ${{ inputs.pr_count }}\n\n"
+
+        EMBEDS_PAYLOAD="[{
+            \"title\": \"$TITLE\",
+            \"description\": \"$DESCRIPTION\",
+            \"color\": $COLOR
+        }]"
+
+        echo "EMBEDS_PAYLOAD<<EOF" >> $GITHUB_ENV
+        echo $EMBEDS_PAYLOAD >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
+    - name: Send Discord message
+      uses: resizes/github-actions/discord/post-message@v1
+      with:
+        discord_channel_id: ${{ inputs.discord_channel_id }}
+        discord_bot_token: ${{ inputs.discord_bot_token }}
+        message_embeds: ${{ env.EMBEDS_PAYLOAD }}
