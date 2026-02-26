@@ -51,4 +51,7 @@ runs:
       shell: bash
       run: |
         docker buildx create --use
-        docker buildx build --platform ${{ inputs.docker_platforms }} --push -t ${{ inputs.ecr_repository }}:${{ inputs.docker_image_tag }} . -f ${{ inputs.dockerfile_path }}
+        docker buildx build --push \
+        --platform ${{ inputs.docker_platforms }} \
+        -t ${{ inputs.ecr_repository }}:${{ inputs.docker_image_tag }} \
+        . -f ${{ inputs.dockerfile_path }}
