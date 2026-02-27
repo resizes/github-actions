@@ -29,6 +29,10 @@ inputs:
   cache_key_prefix:
     description: "Prefix for cache key"
     default: "docker-layers"
+  
+  secrets_input:
+    description: "Comma-separated list of secret names and their env vars (format: secret_id=env_var)"
+    default: ""
 
 runs:
   using: "composite"
@@ -61,14 +65,37 @@ runs:
 
     - name: Build, tag, and push client docker image to Amazon ECR
       shell: bash
+      env:
+        SECRETS_INPUT: ${{ inputs.secrets_input }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ inputs.ecr_repository }}
+        DOCKER_IMAGE_TAG: ${{ inputs.docker_image_tag }}
       run: |
-        docker buildx create --use --name=cache-builder
-        docker buildx build --push \
-          --platform ${{ inputs.docker_platforms }} \
-          -t ${{ inputs.ecr_repository }}:${{ inputs.docker_image_tag }} \
-          --cache-from type=local,src=/tmp/.buildx-cache \
-          --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+        # Build the secrets arguments
+        SECRETS_ARGS=""
+        if [ -n "$SECRETS_INPUT" ]; then
+          IFS=',' read -ra SECRETS <<< "$SECRETS_INPUT"
+          for secret_pair in "${SECRETS[@]}"; do
+            secret_pair=$(echo "$secret_pair" | xargs)  # Trim whitespace
+            # Split by = to get secret_id and env_var
+            IFS='=' read -r secret_id env_var <<< "$secret_pair"
+            if [ -n "$secret_id" ] && [ -n "$env_var" ]; then
+              SECRETS_ARGS="$SECRETS_ARGS --secret id=$secret_id,env=$env_var"
+            fi
+          done
+        fi
+        
+        # Create and use buildx builder
+        docker buildx create --use
+        
+        # Build and push the image
+        docker buildx build \
           -f ${{ inputs.dockerfile_path }} \
+          --platform ${{ inputs.docker_platforms }} \
+          --progress=plain \
+          $SECRETS_ARGS \
+          --push \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY:$DOCKER_IMAGE_TAG \
           .
 
     - name: Move cache
