@@ -67,6 +67,20 @@ runs:
         ECR_REPOSITORY: ${{ inputs.ecr_repository }}
         DOCKER_IMAGE_TAG: ${{ inputs.docker_image_tag }}
       run: |
+        # Build the secrets arguments
+        SECRETS_ARGS=""
+        if [ -n "$SECRETS_INPUT" ]; then
+          IFS=',' read -ra SECRETS <<< "$SECRETS_INPUT"
+          for secret_pair in "${SECRETS[@]}"; do
+            secret_pair=$(echo "$secret_pair" | xargs)  # Trim whitespace
+            # Split by = to get secret_id and env_var
+            IFS='=' read -r secret_id env_var <<< "$secret_pair"
+            if [ -n "$secret_id" ] && [ -n "$env_var" ]; then
+              SECRETS_ARGS="$SECRETS_ARGS --secret id=$secret_id,env=$env_var"
+            fi
+          done
+        fi
+        
         docker buildx create --use --name=cache-builder
         docker buildx build --push \
           --platform ${{ inputs.docker_platforms }} \
