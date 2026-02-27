@@ -26,6 +26,10 @@ inputs:
     description: "Environment variables to pass during the Docker build process"
     default: ""
 
+  cache_key_prefix:
+    description: "Prefix for cache key"
+    default: "docker-layers"
+
 runs:
   using: "composite"
   steps:
@@ -47,11 +51,28 @@ runs:
       run: |
         echo "${{ inputs.env_vars }}" > .env
 
+    - name: Cache Docker layers
+      uses: actions/cache@v3
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ inputs.cache_key_prefix }}-${{ runner.os }}-${{ github.sha }}
+        restore-keys: |
+          ${{ inputs.cache_key_prefix }}-${{ runner.os }}-
+
     - name: Build, tag, and push client docker image to Amazon ECR
       shell: bash
       run: |
-        docker buildx create --use
+        docker buildx create --use --name=cache-builder
         docker buildx build --push \
-        --platform ${{ inputs.docker_platforms }} \
-        -t ${{ inputs.ecr_repository }}:${{ inputs.docker_image_tag }} \
-        . -f ${{ inputs.dockerfile_path }}
+          --platform ${{ inputs.docker_platforms }} \
+          -t ${{ inputs.ecr_repository }}:${{ inputs.docker_image_tag }} \
+          --cache-from type=local,src=/tmp/.buildx-cache \
+          --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+          -f ${{ inputs.dockerfile_path }} \
+          .
+
+    - name: Move cache
+      shell: bash
+      run: |
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
