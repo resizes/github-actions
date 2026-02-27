@@ -29,6 +29,10 @@ inputs:
   cache_key_prefix:
     description: "Prefix for cache key"
     default: "docker-layers"
+  
+  secrets_input:
+    description: "Comma-separated list of secret names and their env vars (format: secret_id=env_var)"
+    default: ""
 
 runs:
   using: "composite"
@@ -80,7 +84,7 @@ runs:
             fi
           done
         fi
-        
+
         docker buildx create --use --name=cache-builder
         docker buildx build --push \
           --platform ${{ inputs.docker_platforms }} \
