@@ -6,6 +6,7 @@ inputs:
     description: "Name of the Discord thread to be created"
     default: "Default Thread Name"
 
+secrets:
   discord_bot_token:
     description: "Discord bot token with permissions to create threads"
     default: "."
@@ -26,8 +27,8 @@ runs:
       id: create_thread
       shell: bash
       env:
-        DISCORD_TOKEN: ${{ inputs.discord_bot_token }}
-        CHANNEL_ID: ${{ inputs.discord_channel_id }}
+        DISCORD_TOKEN: ${{ secrets.discord_bot_token }}
+        CHANNEL_ID: ${{ secrets.discord_channel_id }}
         THREAD_NAME: ${{ inputs.thread_name }}
       run: |
         # Create the thread and capture the response
