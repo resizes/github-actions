@@ -33,6 +33,10 @@ inputs:
   secrets_input:
     description: "Comma-separated list of secret names and their env vars (format: secret_id=env_var)"
     default: ""
+  
+  docker_context:
+    description: "Docker build context"
+    default: "."
 
 runs:
   using: "composite"
@@ -85,7 +89,6 @@ runs:
           done
         fi
 
-        docker buildx create --use --name=cache-builder
         docker buildx build --push \
           --platform ${{ inputs.docker_platforms }} \
           -t ${{ inputs.ecr_repository }}:${{ inputs.docker_image_tag }} \
@@ -93,7 +96,7 @@ runs:
           --cache-from type=local,src=/tmp/.buildx-cache \
           --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
           -f ${{ inputs.dockerfile_path }} \
-          .
+          ${{ inputs.docker_context }}
 
     - name: Move cache
       shell: bash
