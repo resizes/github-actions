@@ -89,7 +89,7 @@ runs:
           done
         fi
 
-        docker buildx build --push \
+        docker buildx create --use --name=cache-builder \
           --platform ${{ inputs.docker_platforms }} \
           -t ${{ inputs.ecr_repository }}:${{ inputs.docker_image_tag }} \
           $SECRETS_ARGS \
