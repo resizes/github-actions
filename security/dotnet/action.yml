@@ -13,11 +13,16 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Verify dotnet/setup-dotnet action version
+      run: |
+        git ls-remote https://github.com/actions/setup-dotnet refs/tags/v5.2.0 | grep c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7
+      shell: bash
+
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v5.2.0
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
 

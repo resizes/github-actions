@@ -12,11 +12,16 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Verify DevSkim action version
+      run: |
+        git ls-remote https://github.com/microsoft/devskim-action refs/tags/v1.0.16 | grep 4b5047945a44163b94642a1cecc0d93a3f428cc6
+      shell: bash
+
     - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Run DevSkim
-      uses: microsoft/devskim-action@v1
+      uses: microsoft/devskim-action@v1.0.16
       with:
         directory-to-scan: ${{ inputs.scan-directory }}
         output-filename: ${{ inputs.output-file }}

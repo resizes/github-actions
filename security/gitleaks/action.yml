@@ -3,7 +3,12 @@ description: "Run Gitleaks secret scanner and add results to summary"
 runs:
   using: "composite"
   steps:
-    - uses: gitleaks/gitleaks-action@v2
+    - name: Verify gitleaks/gitleaks-action version
+      run: |
+        git ls-remote https://github.com/gitleaks/gitleaks-action refs/tags/v2.3.9 | grep ff98106e4c7b2bc287b24eaf42907196329070c7
+      shell: bash
+      
+    - uses: gitleaks/gitleaks-action@v2.3.9
       with:
         args: detect --source . --report-format json --report-path gitleaks.json
 

@@ -3,12 +3,17 @@ description: "Run Checkov and write results to GitHub summary"
 runs:
   using: "composite"
   steps:
+    - name: Verify Checkov action version
+      run: |
+        git ls-remote https://github.com/bridgecrewio/checkov-action refs/tags/v12.1347.0 | grep 99bb2caf247dfd9f03cf984373bc6043d4e32ebf
+      shell: bash
+      
     - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Run Checkov
       id: checkov
-      uses: bridgecrewio/checkov-action@v12
+      uses: bridgecrewio/checkov-action@v12.1347.0
       with:
         output_format: cli,sarif
         output_file_path: checkov_output.txt,results.sarif

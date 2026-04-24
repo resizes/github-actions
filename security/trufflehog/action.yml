@@ -7,7 +7,8 @@ runs:
       run: |
         # Scanning GitHub Repo where action is run and looking for verified keys (no false positives)
         # TruffleHog will show error code 183 whenever a potential secret is found
-        docker run --rm -v "$PWD":/tmp -w /tmp ghcr.io/trufflesecurity/trufflehog:latest \
+        # Running version 3.95.2 (sha256:49d1c4fbbc580aac487ac7cb0517bb085826bd352d7578d62bb4c0c6b7205075) - Checked on 2026-04-24 @ https://hub.docker.com/r/trufflesecurity/trufflehog
+        docker run --rm -v "$PWD":/tmp -w /tmp ghcr.io/trufflesecurity/trufflehog@sha256:49d1c4fbbc580aac487ac7cb0517bb085826bd352d7578d62bb4c0c6b7205075 \
         git file:///tmp \
         --results=verified,unknown \
         --json > trufflehog.json || true  
