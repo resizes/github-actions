@@ -7,32 +7,47 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - run: pip install semgrep
+    - name: Verify and install Semgrep
+      run: |
+        # Official PyPI hashes for semgrep==1.120.0 per platform
+        # Source: https://pypi.org/pypi/semgrep/1.120.0/json
+        KNOWN_HASHES="
+          6226d12eb286428589155bdaced3a2439ba04c629036f104ffb39c542d13cce3
+          02f269443f4f3f99b7cc85ff67ae7bed29522889b0d2182727740969e658237f
+          4a607262bbf56f6a09d55f0ab36cec6f4b147fb6c2cc2d49b38deb361d09a8e1
+          91a66cb04eed24a0bb18abbc10b436e7c8d38e3db9694a85d9a9096678770e40
+          bbb44254bce574dbfc0b3ff7e460ee98c2d283f9775feb0cbb730b10bedb7b9b
+        "
+
+        DOWNLOAD_DIR=$(mktemp -d)
+        python3 -m pip download semgrep==1.120.0 --no-deps -d "$DOWNLOAD_DIR"
+
+        ACTUAL_HASH=$(sha256sum "$DOWNLOAD_DIR"/semgrep-*.whl | awk '{print $1}')
+
+        if ! echo "$KNOWN_HASHES" | grep -qF "$ACTUAL_HASH"; then
+          echo "❌ Semgrep hash not recognized: $ACTUAL_HASH"
+          exit 1
+        fi
+
+        echo "✅ Hash verified: $ACTUAL_HASH"
+        python3 -m pip install "$DOWNLOAD_DIR"/semgrep-*.whl
       shell: bash
 
     - run: |
         semgrep --config "${{ inputs.config }}" --json > semgrep.json || true
-
         echo "## 🔍 Semgrep Report" >> $GITHUB_STEP_SUMMARY
-
         count=$(jq '.results | length' semgrep.json)
         echo "**$count findings**" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-
         if [ "$count" -gt 0 ]; then
           echo "<details><summary>Full Report ($count findings)</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Table header
           echo "| Rule | File | Start Line | Message |" >> $GITHUB_STEP_SUMMARY
           echo "|------|------|------------|---------|" >> $GITHUB_STEP_SUMMARY
-
-          # Table rows with clickable file links
           jq -r --arg repo "$GITHUB_REPOSITORY" --arg ref "$GITHUB_REF_NAME" '
-            .results[] | 
+            .results[] |
             "| \(.check_id) | [\(.path)](https://github.com/\($repo)/blob/\($ref)/\(.path)#L\(.start.line)) | \(.start.line) | \(.extra.message)"' \
             semgrep.json >> $GITHUB_STEP_SUMMARY
-
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
         else
