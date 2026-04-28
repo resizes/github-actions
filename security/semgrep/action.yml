@@ -9,8 +9,8 @@ runs:
   steps:
     - name: Verify and install Semgrep
       run: |
-        # Hashes oficiales de PyPI para semgrep==1.120.0 por plataforma
-        # Fuente: https://pypi.org/pypi/semgrep/1.120.0/json
+        # Official PyPI hashes for semgrep==1.120.0 per platform
+        # Source: https://pypi.org/pypi/semgrep/1.120.0/json
         KNOWN_HASHES="
           6226d12eb286428589155bdaced3a2439ba04c629036f104ffb39c542d13cce3
           02f269443f4f3f99b7cc85ff67ae7bed29522889b0d2182727740969e658237f
@@ -20,17 +20,17 @@ runs:
         "
 
         DOWNLOAD_DIR=$(mktemp -d)
-        pip download semgrep==1.120.0 --no-deps -d "$DOWNLOAD_DIR"
+        python3 -m pip download semgrep==1.120.0 --no-deps -d "$DOWNLOAD_DIR"
 
         ACTUAL_HASH=$(sha256sum "$DOWNLOAD_DIR"/semgrep-*.whl | awk '{print $1}')
 
         if ! echo "$KNOWN_HASHES" | grep -qF "$ACTUAL_HASH"; then
-          echo "❌ Hash de semgrep no reconocido: $ACTUAL_HASH"
+          echo "❌ Semgrep hash not recognized: $ACTUAL_HASH"
           exit 1
         fi
 
-        echo "✅ Hash verificado: $ACTUAL_HASH"
-        pip install "$DOWNLOAD_DIR"/semgrep-*.whl
+        echo "✅ Hash verified: $ACTUAL_HASH"
+        python3 -m pip install "$DOWNLOAD_DIR"/semgrep-*.whl
       shell: bash
 
     - run: |
