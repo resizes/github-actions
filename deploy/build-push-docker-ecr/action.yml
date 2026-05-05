@@ -88,6 +88,20 @@ runs:
 
         echo "SECRETS_ARGS=$SECRETS_ARGS" >> $GITHUB_ENV
     
+    - name: Build Docker build-args
+      shell: bash
+      run: |
+        BUILD_ARGS=""
+
+        if [ -n "${{ inputs.env_vars }}" ]; then
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            BUILD_ARGS="$BUILD_ARGS --build-arg $line"
+          done <<< "${{ inputs.env_vars }}"
+        fi
+
+        echo "BUILD_ARGS=$BUILD_ARGS" >> $GITHUB_ENV
+
     - name: Build, tag, and push client docker image to Amazon ECR
       shell: bash
       env:
@@ -101,6 +115,7 @@ runs:
           --platform ${{ inputs.docker_platforms }} \
           -t ${{ inputs.ecr_repository }}:${{ inputs.docker_image_tag }} \
           $SECRETS_ARGS \
+          $BUILD_ARGS \
           --cache-from type=local,src=/tmp/.buildx-cache \
           --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
           -f ${{ inputs.dockerfile_path }} \
