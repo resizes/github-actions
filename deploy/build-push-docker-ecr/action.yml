@@ -66,33 +66,56 @@ runs:
         key: ${{ inputs.cache_key_prefix }}-${{ runner.os }}-${{ github.sha }}
         restore-keys: |
           ${{ inputs.cache_key_prefix }}-${{ runner.os }}-
-
-    - name: Build, tag, and push client docker image to Amazon ECR
+    
+    - name: Build Docker secret args
       shell: bash
-      env:
-        SECRETS_INPUT: ${{ inputs.secrets_input }}
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: ${{ inputs.ecr_repository }}
-        DOCKER_IMAGE_TAG: ${{ inputs.docker_image_tag }}
       run: |
-        # Build the secrets arguments
         SECRETS_ARGS=""
-        if [ -n "$SECRETS_INPUT" ]; then
-          IFS=',' read -ra SECRETS <<< "$SECRETS_INPUT"
+
+        if [ -n "${{ inputs.secrets_input }}" ]; then
+          IFS=',' read -ra SECRETS <<< "${{ inputs.secrets_input }}"
+
           for secret_pair in "${SECRETS[@]}"; do
-            secret_pair=$(echo "$secret_pair" | xargs)  # Trim whitespace
-            # Split by = to get secret_id and env_var
+            secret_pair=$(echo "$secret_pair" | xargs)
+
             IFS='=' read -r secret_id env_var <<< "$secret_pair"
+
             if [ -n "$secret_id" ] && [ -n "$env_var" ]; then
               SECRETS_ARGS="$SECRETS_ARGS --secret id=$secret_id,env=$env_var"
             fi
           done
         fi
+
+        echo "SECRETS_ARGS=$SECRETS_ARGS" >> $GITHUB_ENV
+    
+    - name: Build Docker build-args
+      shell: bash
+      run: |
+        BUILD_ARGS=""
+
+        if [ -n "${{ inputs.env_vars }}" ]; then
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            BUILD_ARGS="$BUILD_ARGS --build-arg $line"
+          done <<< "${{ inputs.env_vars }}"
+        fi
+
+        echo "BUILD_ARGS=$BUILD_ARGS" >> $GITHUB_ENV
+
+    - name: Build, tag, and push client docker image to Amazon ECR
+      shell: bash
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ inputs.ecr_repository }}
+        DOCKER_IMAGE_TAG: ${{ inputs.docker_image_tag }}
+      run: |
         docker buildx create --use --name=cache-builder
+
         docker buildx build --push \
           --platform ${{ inputs.docker_platforms }} \
           -t ${{ inputs.ecr_repository }}:${{ inputs.docker_image_tag }} \
           $SECRETS_ARGS \
+          $BUILD_ARGS \
           --cache-from type=local,src=/tmp/.buildx-cache \
           --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
           -f ${{ inputs.dockerfile_path }} \
