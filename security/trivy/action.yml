@@ -23,10 +23,12 @@ runs:
         scan-ref: ${{ inputs.scan-ref }}
         format: json
         output: trivy.json
+        scanners: vuln
+        trivy-config: ${{ github.action_path }}/trivy.yaml
 
     - run: |
         echo "## 🐳 Trivy Report" >> $GITHUB_STEP_SUMMARY
-        vulns=$(jq '[.Results[].Vulnerabilities] | add | length' trivy.json)
+        vulns=$(jq '[.Results? // [] | .[] | .Vulnerabilities? // [] | .[]] | length' trivy.json)
         echo "**$vulns vulnerabilities found**" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -41,7 +43,7 @@ runs:
 
           # Table rows sorted by severity
           jq -r '
-            [.Results[].Vulnerabilities[]] 
+            [.Results? // [] | .[] | .Vulnerabilities? // [] | .[]]
             | sort_by(
                 # Map severity to a number for custom order: critical=1, high=2, medium=3, low=4
                 .Severity as $s 

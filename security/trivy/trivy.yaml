@@ -1,0 +1,6 @@
+pkg:
+  include-dev-deps: true
+
+scan:
+  scanners:
+    - vuln
