@@ -414,7 +414,15 @@ def write_step_summary(message: str) -> None:
         handle.write(message + "\n")
 
 
-def git_commit_and_push(docs_dir: Path, *, token: str, branch: str, message: str) -> None:
+def git_commit_and_push(
+    docs_dir: Path,
+    *,
+    token: str,
+    branch: str,
+    message: str,
+    owner: str = "",
+    repo: str = "",
+) -> None:
     run(["git", "config", "user.name", "github-actions[bot]"], cwd=docs_dir)
     run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], cwd=docs_dir)
     run(["git", "add", "-A"], cwd=docs_dir)
@@ -423,14 +431,21 @@ def git_commit_and_push(docs_dir: Path, *, token: str, branch: str, message: str
         return
 
     run(["git", "commit", "-m", message], cwd=docs_dir)
-    remote = subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=docs_dir, text=True).strip()
-    if remote.startswith("https://"):
+
+    if owner and repo:
+        auth_remote = f"https://x-access-token:{token}@github.com/{owner}/{repo}.git"
+    else:
+        remote = subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=docs_dir, text=True).strip()
         secure_remote = re.sub(r"^https://[^/]+@", "https://", remote)
         auth_remote = secure_remote.replace("https://", f"https://x-access-token:{token}@")
-        run(["git", "remote", "set-url", "origin", auth_remote], cwd=docs_dir)
 
-    run(["git", "pull", "--rebase", "origin", branch], cwd=docs_dir, check=False)
-    run(["git", "push", "origin", f"HEAD:{branch}"], cwd=docs_dir)
+    run(["git", "remote", "set-url", "origin", auth_remote], cwd=docs_dir)
+    pull = run(["git", "pull", "--rebase", "origin", branch], cwd=docs_dir, check=False)
+    if pull.returncode != 0:
+        raise RuntimeError(pull.stderr or pull.stdout or "git pull --rebase failed")
+    push = run(["git", "push", "origin", f"HEAD:{branch}"], cwd=docs_dir, check=False)
+    if push.returncode != 0:
+        raise RuntimeError(push.stderr or push.stdout or "git push failed")
 
 
 def dispatch_wiki_sync(
@@ -532,11 +547,15 @@ def apply_from_payload(args: argparse.Namespace) -> int:
         f"[skip ci]\n\n"
         f"Updated: {', '.join(changed_paths)}"
     )
+    repo_slug = os.environ.get("GITHUB_REPOSITORY", "resizes/internal-technical-docs")
+    owner, repo = repo_slug.split("/", 1) if "/" in repo_slug else ("resizes", "internal-technical-docs")
     git_commit_and_push(
         docs_dir,
         token=args.github_token,
         branch=args.docs_branch,
         message=commit_message,
+        owner=owner,
+        repo=repo,
     )
     print(f"Wiki updated: {', '.join(changed_paths)}")
     return 0
@@ -619,12 +638,14 @@ def main() -> int:
             f"[skip ci]\n\n"
             f"Updated: {', '.join(changed_paths)}"
         )
-        git_commit_and_push(
-            docs_dir,
-            token=args.github_token,
-            branch=docs_branch,
-            message=commit_message,
-        )
+    git_commit_and_push(
+        docs_dir,
+        token=args.github_token,
+        branch=docs_branch,
+        message=commit_message,
+        owner=dispatch_owner,
+        repo=dispatch_repo,
+    )
         write_step_summary(f"\n**Committed paths:** {', '.join(changed_paths)}")
         print(f"Wiki updated locally: {', '.join(changed_paths)}")
         return 0
