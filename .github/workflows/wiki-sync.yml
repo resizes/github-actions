@@ -81,7 +81,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run wiki sync
-        uses: resizes/github-actions/wiki-sync@main
+        uses: ./wiki-sync
         with:
           github_app_id: ${{ inputs.github_app_id }}
           github_app_private_key: ${{ secrets.github_app_private_key }}
