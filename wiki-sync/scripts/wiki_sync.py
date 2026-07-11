@@ -417,6 +417,7 @@ def write_step_summary(message: str) -> None:
 def git_commit_and_push(
     docs_dir: Path,
     *,
+    paths: list[str],
     token: str,
     branch: str,
     message: str,
@@ -425,7 +426,7 @@ def git_commit_and_push(
 ) -> None:
     run(["git", "config", "user.name", "github-actions[bot]"], cwd=docs_dir)
     run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], cwd=docs_dir)
-    run(["git", "add", "-A"], cwd=docs_dir)
+    run(["git", "add", "--", *paths], cwd=docs_dir)
     status = run(["git", "status", "--porcelain"], cwd=docs_dir)
     if not status.stdout.strip():
         return
@@ -552,6 +553,7 @@ def apply_from_payload(args: argparse.Namespace) -> int:
     owner, repo = repo_slug.split("/", 1) if "/" in repo_slug else ("resizes", "internal-technical-docs")
     git_commit_and_push(
         docs_dir,
+        paths=changed_paths,
         token=args.github_token,
         branch=args.docs_branch,
         message=commit_message,
@@ -645,6 +647,7 @@ def main() -> int:
         )
         git_commit_and_push(
             docs_dir,
+            paths=changed_paths,
             token=args.github_token,
             branch=docs_branch,
             message=commit_message,

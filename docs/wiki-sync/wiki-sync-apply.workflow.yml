@@ -21,19 +21,20 @@ jobs:
         with:
           repository: resizes/github-actions
           ref: main
-          path: github-actions
+          path: ${{ runner.temp }}/wiki-sync-scripts
           sparse-checkout: |
             wiki-sync/scripts
           sparse-checkout-cone-mode: false
 
       - name: Install Python dependencies
-        run: python3 -m pip install --disable-pip-version-check PyYAML>=6.0.1
+        run: python3 -m pip install --disable-pip-version-check -r "${{ runner.temp }}/wiki-sync-scripts/wiki-sync/scripts/requirements.txt"
 
       - name: Apply wiki updates
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WIKI_SYNC_PAYLOAD: ${{ toJson(github.event.client_payload) }}
         run: |
-          python3 github-actions/wiki-sync/scripts/wiki_sync.py \
+          python3 "${{ runner.temp }}/wiki-sync-scripts/wiki-sync/scripts/wiki_sync.py" \
             --docs-dir . \
             --docs-branch main \
-            --apply-from-json '${{ toJson(github.event.client_payload) }}'
+            --apply-from-json "$WIKI_SYNC_PAYLOAD"

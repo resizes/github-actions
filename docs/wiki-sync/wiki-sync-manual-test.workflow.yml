@@ -10,7 +10,7 @@ on:
       source_ref:
         description: "Source repo ref"
         required: false
-        default: "feat/wiki-sync"
+        default: "main"
       dry_run:
         description: "Analyze without dispatching wiki updates"
         required: false
@@ -52,10 +52,11 @@ jobs:
           repository: resizes/internal-technical-docs
           ref: main
           token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
           path: wiki-docs
 
       - name: Install Python dependencies
-        run: python3 -m pip install --disable-pip-version-check PyYAML>=6.0.1
+        run: python3 -m pip install --disable-pip-version-check -r source-repo/wiki-sync/scripts/requirements.txt
 
       - name: Run wiki sync
         working-directory: source-repo
@@ -63,6 +64,7 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           LITELLM_BASE_URL: ${{ vars.LITELLM_BASE_URL }}
           LITELLM_API_KEY: ${{ secrets.LITELLM_API_KEY }}
+          LITELLM_MODEL: ${{ vars.LITELLM_MODEL }}
           GITHUB_REPOSITORY: ${{ inputs.source_repository }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
@@ -78,6 +80,7 @@ jobs:
             --after-sha "$(git rev-parse HEAD)" \
             --before-sha "$(git rev-parse HEAD~1 2>/dev/null || echo 0000000000000000000000000000000000000000)" \
             --litellm-base-url "${{ vars.LITELLM_BASE_URL }}" \
+            --litellm-model "${{ vars.LITELLM_MODEL }}" \
             --dispatch-owner resizes \
             --dispatch-repo internal-technical-docs \
             $DRY_RUN_FLAG
