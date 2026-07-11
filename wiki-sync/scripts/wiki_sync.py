@@ -282,13 +282,42 @@ def build_prompt(
     ).strip()
 
 
-def call_litellm(*, base_url: str, api_key: str, prompt: str, timeout: int = 300) -> str:
+def resolve_litellm_model(*, base_url: str, api_key: str, configured_model: str = "") -> str:
+    if configured_model.strip():
+        return configured_model.strip()
+
+    url = base_url.rstrip("/") + "/v1/models"
+    headers = {"Accept": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    request = urllib.request.Request(url, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"LiteLLM models request failed ({exc.code}): {detail}") from exc
+
+    models = body.get("data") or []
+    if not models:
+        raise RuntimeError("LiteLLM returned no models; set LITELLM_MODEL explicitly")
+
+    model_id = str(models[0].get("id", "")).strip()
+    if not model_id:
+        raise RuntimeError("LiteLLM default model could not be resolved; set LITELLM_MODEL explicitly")
+    return model_id
+
+
+def call_litellm(*, base_url: str, api_key: str, prompt: str, model: str = "", timeout: int = 300) -> str:
+    model_name = resolve_litellm_model(base_url=base_url, api_key=api_key, configured_model=model)
     url = base_url.rstrip("/") + "/v1/chat/completions"
     headers = {"Content-Type": "application/json"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
     payload = {
+        "model": model_name,
         "messages": [
             {
                 "role": "system",
@@ -493,6 +522,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--after-sha", default=os.environ.get("GITHUB_SHA", ""))
     parser.add_argument("--litellm-base-url", default=os.environ.get("LITELLM_BASE_URL", "https://litellm.internal.resiz.es"))
     parser.add_argument("--litellm-api-key", default=os.environ.get("LITELLM_API_KEY", ""))
+    parser.add_argument("--litellm-model", default=os.environ.get("LITELLM_MODEL", ""))
     parser.add_argument("--github-token", default=os.environ.get("GITHUB_TOKEN", os.environ.get("DOCS_GITHUB_TOKEN", "")))
     parser.add_argument("--dispatch-owner", default="")
     parser.add_argument("--dispatch-repo", default="")
@@ -576,6 +606,7 @@ def main() -> int:
     llm_response = call_litellm(
         base_url=args.litellm_base_url,
         api_key=args.litellm_api_key,
+        model=args.litellm_model,
         prompt=prompt,
     )
     analysis = parse_analysis(llm_response)
