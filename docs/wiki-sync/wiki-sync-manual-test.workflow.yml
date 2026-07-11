@@ -1,0 +1,83 @@
+name: Wiki Sync Manual Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_repository:
+        description: "Source repo to analyze"
+        required: false
+        default: "resizes/github-actions"
+      source_ref:
+        description: "Source repo ref"
+        required: false
+        default: "feat/wiki-sync"
+      dry_run:
+        description: "Analyze without dispatching wiki updates"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  wiki-sync:
+    name: Sync Wiki (manual test)
+    runs-on: actions-runners
+
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.RESIZES_AGENTIC_AI_APP_ID }}
+          private-key: ${{ secrets.RESIZES_AGENTIC_AI_PRIVATE_KEY }}
+          owner: resizes
+          repositories: |
+            github-actions
+            internal-technical-docs
+
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.source_repository }}
+          ref: ${{ inputs.source_ref }}
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+          path: source-repo
+
+      - name: Checkout docs repository
+        uses: actions/checkout@v4
+        with:
+          repository: resizes/internal-technical-docs
+          ref: main
+          token: ${{ steps.app-token.outputs.token }}
+          path: wiki-docs
+
+      - name: Install Python dependencies
+        run: python3 -m pip install --disable-pip-version-check PyYAML>=6.0.1
+
+      - name: Run wiki sync
+        working-directory: source-repo
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          LITELLM_BASE_URL: ${{ vars.LITELLM_BASE_URL }}
+          LITELLM_API_KEY: ${{ secrets.LITELLM_API_KEY }}
+          GITHUB_REPOSITORY: ${{ inputs.source_repository }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+
+          python3 wiki-sync/scripts/wiki_sync.py \
+            --source-dir . \
+            --docs-dir ../wiki-docs \
+            --config .github/wiki-sync.yml \
+            --after-sha "$(git rev-parse HEAD)" \
+            --before-sha "$(git rev-parse HEAD~1 2>/dev/null || echo 0000000000000000000000000000000000000000)" \
+            --litellm-base-url "${{ vars.LITELLM_BASE_URL }}" \
+            --dispatch-owner resizes \
+            --dispatch-repo internal-technical-docs \
+            $DRY_RUN_FLAG
