@@ -1,0 +1,39 @@
+name: Wiki Sync Apply
+
+on:
+  repository_dispatch:
+    types: [wiki-sync]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    name: Apply Wiki Updates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout docs repository
+        uses: actions/checkout@v4
+
+      - name: Checkout wiki sync scripts
+        uses: actions/checkout@v4
+        with:
+          repository: resizes/github-actions
+          ref: main
+          path: github-actions
+          sparse-checkout: |
+            wiki-sync/scripts
+          sparse-checkout-cone-mode: false
+
+      - name: Install Python dependencies
+        run: python3 -m pip install --disable-pip-version-check PyYAML>=6.0.1
+
+      - name: Apply wiki updates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 github-actions/wiki-sync/scripts/wiki_sync.py \
+            --docs-dir . \
+            --docs-branch main \
+            --apply-from-json '${{ toJson(github.event.client_payload) }}'

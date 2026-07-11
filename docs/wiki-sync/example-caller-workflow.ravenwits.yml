@@ -1,0 +1,30 @@
+name: Wiki Sync
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Analyze without pushing wiki updates"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  wiki-sync:
+    uses: resizes/github-actions/.github/workflows/wiki-sync.yml@main
+    with:
+      github_app_id: ${{ vars.WIKI_SYNC_APP_ID }}
+      docs_repository_owner: RavenwitsSL
+      docs_repository: internal-docs
+      litellm_base_url: ${{ vars.LITELLM_BASE_URL }}
+      dry_run: ${{ inputs.dry_run || false }}
+      runner: actions-runners
+    secrets:
+      github_app_private_key: ${{ secrets.WIKI_SYNC_APP_PRIVATE_KEY }}
+      litellm_api_key: ${{ secrets.LITELLM_API_KEY }}

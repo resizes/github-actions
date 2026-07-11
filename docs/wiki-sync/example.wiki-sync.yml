@@ -1,0 +1,23 @@
+version: 1
+
+docs:
+  owner: Resizes
+  repository: internal-docs
+  branch: main
+
+watch:
+  paths:
+    - "**/*"
+  ignore:
+    - "**/*.test.*"
+    - "**/*_test.go"
+    - "**/test/**"
+    - "**/tests/**"
+    - "**/__tests__/**"
+    - "**/vendor/**"
+    - "**/node_modules/**"
+    - ".github/**"
+
+behavior:
+  dry_run: false
+  max_files: 30
