@@ -638,14 +638,14 @@ def main() -> int:
             f"[skip ci]\n\n"
             f"Updated: {', '.join(changed_paths)}"
         )
-    git_commit_and_push(
-        docs_dir,
-        token=args.github_token,
-        branch=docs_branch,
-        message=commit_message,
-        owner=dispatch_owner,
-        repo=dispatch_repo,
-    )
+        git_commit_and_push(
+            docs_dir,
+            token=args.github_token,
+            branch=docs_branch,
+            message=commit_message,
+            owner=dispatch_owner,
+            repo=dispatch_repo,
+        )
         write_step_summary(f"\n**Committed paths:** {', '.join(changed_paths)}")
         print(f"Wiki updated locally: {', '.join(changed_paths)}")
         return 0
