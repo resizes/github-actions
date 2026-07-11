@@ -510,6 +510,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dispatch-repo", default="")
     parser.add_argument("--docs-branch", default="main")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--apply-local", action="store_true")
     parser.add_argument("--apply-from-json", default="")
     return parser.parse_args()
 
@@ -607,6 +608,25 @@ def main() -> int:
     if dry_run:
         write_step_summary("\n**Dry run:** no dispatch sent.")
         print("Dry run enabled; skipping wiki dispatch.")
+        return 0
+
+    if args.apply_local:
+        if not args.github_token:
+            raise RuntimeError("GITHUB_TOKEN is required for --apply-local")
+        changed_paths = apply_updates(docs_dir, analysis.updates, log_entry=analysis.log_entry)
+        commit_message = (
+            f"docs(sync): update wiki from {args.source_repo}@{args.after_sha[:7]}\n\n"
+            f"[skip ci]\n\n"
+            f"Updated: {', '.join(changed_paths)}"
+        )
+        git_commit_and_push(
+            docs_dir,
+            token=args.github_token,
+            branch=docs_branch,
+            message=commit_message,
+        )
+        write_step_summary(f"\n**Committed paths:** {', '.join(changed_paths)}")
+        print(f"Wiki updated locally: {', '.join(changed_paths)}")
         return 0
 
     if not args.github_token:
