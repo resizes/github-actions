@@ -1,0 +1,96 @@
+name: Wiki Sync
+
+on:
+  workflow_call:
+    inputs:
+      github_app_id:
+        description: "GitHub App ID"
+        required: true
+        type: string
+
+      docs_repository_owner:
+        description: "Owner of the docs/wiki repository"
+        required: true
+        type: string
+
+      docs_repository:
+        description: "Docs/wiki repository name"
+        required: true
+        type: string
+
+      docs_branch:
+        description: "Branch to push wiki updates to"
+        required: false
+        type: string
+        default: "main"
+
+      before_sha:
+        description: "Previous commit SHA from the push event (auto-detected when omitted)"
+        required: false
+        type: string
+        default: ""
+
+      after_sha:
+        description: "Current commit SHA"
+        required: false
+        type: string
+        default: ""
+
+      config_path:
+        description: "Path to wiki sync config relative to source repo root"
+        required: false
+        type: string
+        default: ".github/wiki-sync.yml"
+
+      litellm_base_url:
+        description: "LiteLLM OpenAI-compatible base URL"
+        required: false
+        type: string
+        default: "https://litellm.internal.resiz.es"
+
+      dry_run:
+        description: "Analyze without pushing wiki updates"
+        required: false
+        type: boolean
+        default: false
+
+      runner:
+        description: "GitHub Actions runner label"
+        required: false
+        type: string
+        default: "actions-runners"
+
+    secrets:
+      github_app_private_key:
+        description: "GitHub App private key (PEM)"
+        required: true
+
+      litellm_api_key:
+        description: "Optional LiteLLM API key"
+        required: false
+
+jobs:
+  wiki-sync:
+    name: Sync Wiki
+    runs-on: ${{ inputs.runner }}
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run wiki sync
+        uses: resizes/github-actions/wiki-sync@main
+        with:
+          github_app_id: ${{ inputs.github_app_id }}
+          github_app_private_key: ${{ secrets.github_app_private_key }}
+          docs_repository_owner: ${{ inputs.docs_repository_owner }}
+          docs_repository: ${{ inputs.docs_repository }}
+          docs_branch: ${{ inputs.docs_branch }}
+          before_sha: ${{ inputs.before_sha != '' && inputs.before_sha || github.event.before || '0000000000000000000000000000000000000000' }}
+          after_sha: ${{ inputs.after_sha != '' && inputs.after_sha || github.sha }}
+          config_path: ${{ inputs.config_path }}
+          litellm_base_url: ${{ inputs.litellm_base_url }}
+          litellm_api_key: ${{ secrets.litellm_api_key }}
+          dry_run: ${{ inputs.dry_run }}

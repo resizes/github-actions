@@ -1,0 +1,105 @@
+name: "Wiki Sync"
+description: "Analyze main-branch changes and update internal-technical-docs via LiteLLM and repository_dispatch"
+
+inputs:
+  github_app_id:
+    description: "Resizes Agentic AI GitHub App ID"
+    required: true
+
+  github_app_private_key:
+    description: "Resizes Agentic AI GitHub App private key in PEM format"
+    required: true
+
+  docs_repository_owner:
+    description: "Owner of the docs/wiki repository"
+    required: true
+
+  docs_repository:
+    description: "Docs/wiki repository name (e.g. internal-technical-docs)"
+    required: true
+
+  docs_branch:
+    description: "Branch to push wiki updates to"
+    default: "main"
+
+  before_sha:
+    description: "Previous commit SHA from the push event"
+    default: "0000000000000000000000000000000000000000"
+
+  after_sha:
+    description: "Current commit SHA"
+    default: ""
+
+  source_path:
+    description: "Path where the source repository is checked out"
+    default: "."
+
+  config_path:
+    description: "Path to wiki sync config relative to source repo root"
+    default: ".github/wiki-sync.yml"
+
+  litellm_base_url:
+    description: "LiteLLM OpenAI-compatible base URL reachable from ARC runners"
+    default: "https://litellm.internal.resiz.es"
+
+  litellm_api_key:
+    description: "Optional LiteLLM API key"
+    default: ""
+
+  dry_run:
+    description: "Analyze and report proposed wiki updates without dispatching"
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Python dependencies
+      shell: bash
+      run: |
+        python3 -m pip install --disable-pip-version-check -r "${{ github.action_path }}/scripts/requirements.txt"
+
+    - name: Create GitHub App token
+      id: app-token
+      uses: actions/create-github-app-token@v2
+      with:
+        app-id: ${{ inputs.github_app_id }}
+        private-key: ${{ inputs.github_app_private_key }}
+        owner: ${{ inputs.docs_repository_owner }}
+        repositories: |
+          ${{ inputs.docs_repository }}
+
+    - name: Checkout docs repository
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.docs_repository_owner }}/${{ inputs.docs_repository }}
+        ref: ${{ inputs.docs_branch }}
+        token: ${{ steps.app-token.outputs.token }}
+        persist-credentials: false
+        path: wiki-docs
+
+    - name: Sync wiki from source changes
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        LITELLM_BASE_URL: ${{ inputs.litellm_base_url }}
+        LITELLM_API_KEY: ${{ inputs.litellm_api_key }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_SHA: ${{ inputs.after_sha != '' && inputs.after_sha || github.sha }}
+        GITHUB_EVENT_BEFORE: ${{ inputs.before_sha }}
+      run: |
+        DRY_RUN_FLAG=""
+        if [ "${{ inputs.dry_run }}" = "true" ]; then
+          DRY_RUN_FLAG="--dry-run"
+        fi
+
+        python3 "${{ github.action_path }}/scripts/wiki_sync.py" \
+          --source-dir "${{ inputs.source_path }}" \
+          --docs-dir "wiki-docs" \
+          --config "${{ inputs.config_path }}" \
+          --before-sha "${{ inputs.before_sha }}" \
+          --after-sha "${{ inputs.after_sha != '' && inputs.after_sha || github.sha }}" \
+          --litellm-base-url "${{ inputs.litellm_base_url }}" \
+          --dispatch-owner "${{ inputs.docs_repository_owner }}" \
+          --dispatch-repo "${{ inputs.docs_repository }}" \
+          --docs-branch "${{ inputs.docs_branch }}" \
+          $DRY_RUN_FLAG

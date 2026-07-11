@@ -1,0 +1,90 @@
+# Wiki Maintainer Schema
+
+This file defines how the LLM wiki in this repository is structured and maintained.
+It follows the [LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
+
+## Layers
+
+1. **Raw sources** — immutable inputs the wiki is derived from (other repos, exports, notes).
+2. **Wiki (`wiki/`)** — LLM-maintained markdown pages with cross-links.
+3. **Schema (this file)** — conventions the maintainer must follow on every ingest.
+
+## Directory layout
+
+```
+wiki/
+├── AGENTS.md          # this schema
+├── index.md           # catalog of all wiki pages
+├── log.md             # append-only ingest/query/lint timeline
+├── overview.md        # high-level synthesis (optional)
+├── summaries/         # one page per ingested source/document
+├── concepts/          # cross-cutting topics and synthesized knowledge
+└── entities/          # services, systems, teams, customers, components
+```
+
+## Page types
+
+| Type | Location | When to create | When to update |
+|------|----------|----------------|----------------|
+| summary | `wiki/summaries/` | New source ingested | Source materially changes |
+| concept | `wiki/concepts/` | New cross-cutting topic emerges | Topic behavior or scope changes |
+| entity | `wiki/entities/` | New distinct service/system/team | Attributes, ownership, or interfaces change |
+
+**Heuristic:** create a new page for a distinct entity/concept you would link to from elsewhere; edit in place for attribute updates.
+
+## Frontmatter (required on summary, concept, entity pages)
+
+```yaml
+---
+type: summary | concept | entity
+title: Human-readable title
+description: One-line summary
+tags: [tag1, tag2]
+timestamp: 2026-07-11
+sources:
+  - org/repo@commit
+---
+```
+
+## Cross-linking
+
+- Use Obsidian-style wikilinks: `[[concepts/payments]]`, `[[entities/api-gateway]]`
+- When updating a page, also update pages that link to it if their claims are affected
+- Avoid orphan pages; ensure `wiki/index.md` lists every page
+
+## Ingest workflow (automated)
+
+When a source repository changes on `main`:
+
+1. Read the commit diff and determine relevance (API, infra, config, engineer/customer-impacting refactors).
+2. Update affected `summaries/`, `concepts/`, and `entities/` pages.
+3. Refresh `wiki/index.md` with links and one-line descriptions.
+4. Append an entry to `wiki/log.md`:
+   `## [YYYY-MM-DD] ingest | org/repo@sha | short summary`
+
+## Relevance bar
+
+Update the wiki when changes affect:
+
+- Public or internal APIs, contracts, schemas, endpoints
+- Infrastructure, deployment, configuration, environment variables
+- Architecture or runtime behavior engineers or customers rely on
+- Internal refactors that change how systems work
+
+Skip updates for formatting-only edits, test-only changes, and dependency bumps with no behavior change.
+
+## Lint (manual / scheduled)
+
+Periodically check for:
+
+- Missing frontmatter fields
+- Stale pages contradicted by newer sources
+- Orphan pages with no inbound links
+- Coverage gaps (concepts mentioned but lacking a page)
+- Overview drift (`overview.md` lagging behind recent ingests)
+
+## Naming
+
+- Filenames: lowercase kebab-case (`payment-retries.md`)
+- Titles: Title Case in frontmatter
+- Prefer fewer, denser pages over many thin duplicates
