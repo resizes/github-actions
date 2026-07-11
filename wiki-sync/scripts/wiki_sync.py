@@ -282,31 +282,13 @@ def build_prompt(
     ).strip()
 
 
+DEFAULT_LITELLM_MODEL = "ollama_chat/glm-5:cloud"
+
+
 def resolve_litellm_model(*, base_url: str, api_key: str, configured_model: str = "") -> str:
     if configured_model.strip():
         return configured_model.strip()
-
-    url = base_url.rstrip("/") + "/v1/models"
-    headers = {"Accept": "application/json"}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-
-    request = urllib.request.Request(url, headers=headers, method="GET")
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            body = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"LiteLLM models request failed ({exc.code}): {detail}") from exc
-
-    models = body.get("data") or []
-    if not models:
-        raise RuntimeError("LiteLLM returned no models; set LITELLM_MODEL explicitly")
-
-    model_id = str(models[0].get("id", "")).strip()
-    if not model_id:
-        raise RuntimeError("LiteLLM default model could not be resolved; set LITELLM_MODEL explicitly")
-    return model_id
+    return DEFAULT_LITELLM_MODEL
 
 
 def call_litellm(*, base_url: str, api_key: str, prompt: str, model: str = "", timeout: int = 300) -> str:
