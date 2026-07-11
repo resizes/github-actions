@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Analyze without pushing wiki updates"
+        description: "Analyze without dispatching wiki updates"
         required: false
         default: false
         type: boolean
@@ -17,14 +17,26 @@ permissions:
 
 jobs:
   wiki-sync:
-    uses: resizes/github-actions/.github/workflows/wiki-sync.yml@main
-    with:
-      github_app_id: ${{ vars.WIKI_SYNC_APP_ID }}
-      docs_repository_owner: RavenwitsSL
-      docs_repository: internal-docs
-      litellm_base_url: ${{ vars.LITELLM_BASE_URL }}
-      dry_run: ${{ inputs.dry_run || false }}
-      runner: actions-runners
-    secrets:
-      github_app_private_key: ${{ secrets.WIKI_SYNC_APP_PRIVATE_KEY }}
-      litellm_api_key: ${{ secrets.LITELLM_API_KEY }}
+    name: Sync Wiki
+    runs-on: actions-runners
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run wiki sync
+        uses: resizes/github-actions/wiki-sync@main
+        with:
+          github_app_id: ${{ vars.RESIZES_AGENTIC_AI_APP_ID }}
+          github_app_private_key: ${{ secrets.RESIZES_AGENTIC_AI_PRIVATE_KEY }}
+          docs_repository_owner: RavenwitsSL
+          docs_repository: internal-technical-docs
+          docs_branch: main
+          before_sha: ${{ github.event.before || '0000000000000000000000000000000000000000' }}
+          after_sha: ${{ github.sha }}
+          config_path: .github/wiki-sync.yml
+          litellm_base_url: ${{ vars.LITELLM_BASE_URL }}
+          litellm_api_key: ${{ secrets.LITELLM_API_KEY }}
+          dry_run: ${{ inputs.dry_run || false }}
