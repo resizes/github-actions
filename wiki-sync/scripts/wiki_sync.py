@@ -282,7 +282,7 @@ def build_prompt(
     ).strip()
 
 
-DEFAULT_LITELLM_MODEL = "ollama_chat/glm-5:cloud"
+DEFAULT_LITELLM_MODEL = "ollama_chat/qwen3.5:27b"
 
 
 def resolve_litellm_model(*, base_url: str, api_key: str, configured_model: str = "") -> str:
