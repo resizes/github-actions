@@ -48,6 +48,12 @@ on:
         type: string
         default: "https://litellm.internal.resiz.es"
 
+      litellm_model:
+        description: "LiteLLM model identifier for relevance analysis"
+        required: false
+        type: string
+        default: "ollama_chat/qwen3.5:27b"
+
       dry_run:
         description: "Analyze without pushing wiki updates"
         required: false
@@ -81,16 +87,16 @@ jobs:
           fetch-depth: 0
 
       - name: Run wiki sync
-        uses: ./wiki-sync
+        uses: resizes/github-actions/wiki-sync@main
         with:
           github_app_id: ${{ inputs.github_app_id }}
           github_app_private_key: ${{ secrets.github_app_private_key }}
           docs_repository_owner: ${{ inputs.docs_repository_owner }}
           docs_repository: ${{ inputs.docs_repository }}
           docs_branch: ${{ inputs.docs_branch }}
-          before_sha: ${{ inputs.before_sha != '' && inputs.before_sha || github.event.before || '0000000000000000000000000000000000000000' }}
-          after_sha: ${{ inputs.after_sha != '' && inputs.after_sha || github.sha }}
+          before_sha: ${{ inputs.before_sha }}
+          after_sha: ${{ inputs.after_sha }}
           config_path: ${{ inputs.config_path }}
           litellm_base_url: ${{ inputs.litellm_base_url }}
-          litellm_api_key: ${{ secrets.litellm_api_key }}
+          litellm_model: ${{ inputs.litellm_model }}
           dry_run: ${{ inputs.dry_run }}
