@@ -32,7 +32,7 @@ jobs:
           github_app_id: ${{ vars.RESIZES_AGENTIC_AI_APP_ID }}
           github_app_private_key: ${{ secrets.RESIZES_AGENTIC_AI_PRIVATE_KEY }}
           docs_repository_owner: resizes
-          docs_repository: internal-technical-docs
+          docs_repository: knowledge-base
           docs_branch: main
           before_sha: ${{ github.event.before || '0000000000000000000000000000000000000000' }}
           after_sha: ${{ github.sha }}
