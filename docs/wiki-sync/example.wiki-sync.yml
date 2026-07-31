@@ -1,8 +1,8 @@
 version: 1
 
 docs:
-  owner: Resizes
-  repository: internal-docs
+  owner: resizes
+  repository: knowledge-base
   branch: main
 
 watch:

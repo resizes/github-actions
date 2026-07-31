@@ -62,19 +62,36 @@ runs:
         fi
         python3 -m pip install --disable-pip-version-check -r "${{ github.action_path }}/scripts/requirements.txt"
 
+    - name: Generate docs repository token
+      id: app-token
+      uses: actions/create-github-app-token@v2
+      with:
+        app-id: ${{ inputs.github_app_id }}
+        private-key: ${{ inputs.github_app_private_key }}
+        owner: ${{ inputs.docs_repository_owner }}
+        repositories: ${{ inputs.docs_repository }}
+
     - name: Run wiki sync script
       shell: bash
+      env:
+        WIKI_SYNC_DRY_RUN: ${{ inputs.dry_run }}
       run: |
+        after_sha="${{ inputs.after_sha }}"
+        if [ -z "$after_sha" ]; then after_sha="${GITHUB_SHA}"; fi
+        before_sha="${{ inputs.before_sha }}"
+        if [ -z "$before_sha" ]; then before_sha="0000000000000000000000000000000000000000"; fi
+        dry_run_flag=""
+        if [ "${WIKI_SYNC_DRY_RUN}" = "true" ]; then dry_run_flag="--dry-run"; fi
         python3 "${{ github.action_path }}/scripts/wiki_sync.py" \
-          --github-app-id "${{ inputs.github_app_id }}" \
-          --github-app-private-key "${{ inputs.github_app_private_key }}" \
-          --docs-repository-owner "${{ inputs.docs_repository_owner }}" \
-          --docs-repository "${{ inputs.docs_repository }}" \
+          --source-dir "${{ inputs.source_path }}" \
+          --config "${{ inputs.config_path }}" \
+          --source-repo "${{ github.repository }}" \
+          --before-sha "$before_sha" \
+          --after-sha "$after_sha" \
+          --dispatch-owner "${{ inputs.docs_repository_owner }}" \
+          --dispatch-repo "${{ inputs.docs_repository }}" \
           --docs-branch "${{ inputs.docs_branch }}" \
-          --before-sha "${{ inputs.before_sha }}" \
-          --after-sha "${{ inputs.after_sha }}" \
-          --source-path "${{ inputs.source_path }}" \
-          --config-path "${{ inputs.config_path }}" \
+          --github-token "${{ steps.app-token.outputs.token }}" \
           --litellm-base-url "${{ inputs.litellm_base_url }}" \
           --litellm-api-key "${{ inputs.litellm_api_key }}" \
-          --dry-run "${{ inputs.dry_run }}"
+          $dry_run_flag
