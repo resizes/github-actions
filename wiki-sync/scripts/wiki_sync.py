@@ -43,6 +43,7 @@ class WikiUpdate:
     path: str
     action: str
     content: str
+    target: str = ""
 
 
 @dataclass
@@ -62,6 +63,66 @@ def load_config(config_path: Path) -> dict[str, Any]:
         raise FileNotFoundError(f"Wiki sync config not found: {config_path}")
     with config_path.open(encoding="utf-8") as handle:
         return yaml.safe_load(handle) or {}
+
+
+@dataclass
+class RoutingTarget:
+    name: str
+    owner: str
+    repository: str
+    enabled: bool
+
+
+@dataclass
+class Routing:
+    default_target: str
+    targets: dict[str, "RoutingTarget"]
+
+    def resolve(self, target_name: str, *, fallback_owner: str = "", fallback_repo: str = "") -> tuple[str, str]:
+        """Resolve a classified target name to (owner, repository).
+
+        Falls back to ``default_target`` when the target is unknown or disabled,
+        and to the provided fallback owner/repo when the default is also
+        unavailable.
+        """
+        candidate = self.targets.get(target_name)
+        if candidate is None or not candidate.enabled:
+            candidate = self.targets.get(self.default_target)
+        if candidate is not None and candidate.enabled:
+            return candidate.owner, candidate.repository
+        return fallback_owner, fallback_repo
+
+
+# Semantic criterion the LLM uses to classify each update's target.
+TARGET_GUIDANCE: dict[str, str] = {
+    "knowledge-base": (
+        "Internal and client-specific knowledge: subjective or non-objective "
+        "context tied to a particular client or to Resizes' own business "
+        "(customers, engagements, internal decisions, business specifics)."
+    ),
+    "knowledge-base-agentic": (
+        "Platform and development technical knowledge that is client-agnostic, "
+        "objective and reusable (architecture, APIs, infrastructure patterns, "
+        "tooling, conventions) that applies regardless of any specific client."
+    ),
+}
+
+
+def load_routing(routing_path: Path | None) -> Routing | None:
+    if not routing_path or not routing_path.exists():
+        return None
+    with routing_path.open(encoding="utf-8") as handle:
+        data = yaml.safe_load(handle) or {}
+    targets: dict[str, RoutingTarget] = {}
+    for name, cfg in (data.get("targets") or {}).items():
+        cfg = cfg or {}
+        targets[name] = RoutingTarget(
+            name=name,
+            owner=str(cfg.get("owner", "")),
+            repository=str(cfg.get("repository", "")),
+            enabled=bool(cfg.get("enabled", True)),
+        )
+    return Routing(default_target=str(data.get("default_target", "")), targets=targets)
 
 
 def matches_any(path: str, patterns: list[str]) -> bool:
@@ -206,6 +267,29 @@ def wiki_context(docs_dir: Path) -> dict[str, str]:
     return context
 
 
+def build_classification_block(routing: Routing | None) -> str:
+    """Prose that tells the LLM how to set each update's `target`.
+
+    Returns an empty string when there is no routing (single-KB, legacy
+    behavior) so the prompt stays unchanged in that case.
+    """
+    if routing is None or not routing.targets:
+        return ""
+    lines = [
+        "Routing — set a `target` on every update, choosing the knowledge base it belongs to:",
+    ]
+    for name, target in routing.targets.items():
+        guidance = TARGET_GUIDANCE.get(name, f"Knowledge base `{name}`.")
+        lines.append(f"- `{name}`: {guidance}")
+    default = routing.default_target or next(iter(routing.targets))
+    lines.append(
+        f"When a change fits both, split the updates by target. When unsure, use `{default}`. "
+        "`index.md` and `log.md` are per knowledge base: include them tagged with the same "
+        "`target` as the pages they accompany."
+    )
+    return "\n        ".join(lines)
+
+
 def build_prompt(
     *,
     source_repo: str,
@@ -213,12 +297,17 @@ def build_prompt(
     filtered_files: list[dict[str, Any]],
     wiki_ctx: dict[str, str],
     source_readme: str,
+    routing: Routing | None = None,
 ) -> str:
     files_blob = json.dumps(filtered_files, indent=2)
     wiki_blob = json.dumps(wiki_ctx, indent=2)
+    classification_block = build_classification_block(routing)
+    target_field = '\n              "target": "knowledge-base|knowledge-base-agentic",' if classification_block else ""
     return textwrap.dedent(
         f"""
         You maintain the Resizes knowledge-base LLM wiki for engineers.
+
+        {classification_block}
 
         Source repository: {source_repo}
         Commit range: {change_set.before_sha} -> {change_set.after_sha}
@@ -267,7 +356,7 @@ def build_prompt(
             {{
               "path": "concepts/example.md",
               "action": "create|update|append",
-              "content": "full file content for create/update, or append block for append"
+              "content": "full file content for create/update, or append block for append"{target_field}
             }}
           ]
         }}
@@ -355,6 +444,7 @@ def parse_analysis(content: str) -> AnalysisResult:
             path=item["path"],
             action=item.get("action", "update"),
             content=item.get("content", ""),
+            target=str(item.get("target", "")),
         )
         for item in payload.get("updates", [])
         if item.get("path")
@@ -467,7 +557,7 @@ def dispatch_wiki_sync(
             "reason": analysis.reason,
             "log_entry": analysis.log_entry,
             "updates": [
-                {"path": u.path, "action": u.action, "content": u.content}
+                {"path": u.path, "action": u.action, "content": u.content, "target": u.target}
                 for u in analysis.updates
             ],
         },
@@ -492,12 +582,60 @@ def dispatch_wiki_sync(
         raise RuntimeError(f"repository_dispatch failed ({exc.code}): {detail}") from exc
 
 
+def dispatch_by_target(
+    *,
+    token: str,
+    routing: Routing,
+    fallback_owner: str,
+    fallback_repo: str,
+    source_repo: str,
+    after_sha: str,
+    analysis: AnalysisResult,
+) -> list[str]:
+    """Group updates by their resolved docs repo and dispatch one event each.
+
+    Returns the ``owner/repo`` slugs dispatched to.
+    """
+    groups: dict[tuple[str, str], list[WikiUpdate]] = {}
+    for update in analysis.updates:
+        target_name = update.target or routing.default_target
+        owner, repo = routing.resolve(
+            target_name, fallback_owner=fallback_owner, fallback_repo=fallback_repo
+        )
+        if not owner or not repo:
+            raise RuntimeError(
+                f"Cannot resolve a docs repository for target '{target_name}'. "
+                "Check wiki-sync/routing.yml (targets/default_target) and the caller config."
+            )
+        groups.setdefault((owner, repo), []).append(update)
+
+    dispatched: list[str] = []
+    for (owner, repo), updates in groups.items():
+        subset = AnalysisResult(
+            relevant=analysis.relevant,
+            reason=analysis.reason,
+            updates=updates,
+            log_entry=analysis.log_entry,
+        )
+        dispatch_wiki_sync(
+            token=token,
+            owner=owner,
+            repo=repo,
+            source_repo=source_repo,
+            after_sha=after_sha,
+            analysis=subset,
+        )
+        dispatched.append(f"{owner}/{repo}")
+    return dispatched
+
+
 def analysis_to_result(payload: dict[str, Any]) -> AnalysisResult:
     updates = [
         WikiUpdate(
             path=item["path"],
             action=item.get("action", "update"),
             content=item.get("content", ""),
+            target=str(item.get("target", "")),
         )
         for item in payload.get("updates", [])
         if item.get("path")
@@ -524,6 +662,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--github-token", default=os.environ.get("GITHUB_TOKEN", os.environ.get("DOCS_GITHUB_TOKEN", "")))
     parser.add_argument("--dispatch-owner", default="")
     parser.add_argument("--dispatch-repo", default="")
+    parser.add_argument("--routing-config", default=os.environ.get("WIKI_SYNC_ROUTING", ""))
     parser.add_argument("--docs-branch", default="main")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--apply-local", action="store_true")
@@ -582,6 +721,7 @@ def main() -> int:
     docs_branch = str(docs_cfg.get("branch", args.docs_branch))
     dispatch_owner = args.dispatch_owner or str(docs_cfg.get("owner", ""))
     dispatch_repo = args.dispatch_repo or str(docs_cfg.get("repository", ""))
+    routing = load_routing(Path(args.routing_config)) if args.routing_config else None
 
     change_set = collect_commit_changes(source_dir, args.before_sha, args.after_sha, max_files)
     filtered = filter_changes(change_set.files, config)
@@ -605,6 +745,7 @@ def main() -> int:
         filtered_files=filtered,
         wiki_ctx=wiki_ctx,
         source_readme=source_readme,
+        routing=routing,
     )
 
     print("Calling LiteLLM for relevance analysis...")
@@ -660,6 +801,22 @@ def main() -> int:
 
     if not args.github_token:
         raise RuntimeError("GITHUB_TOKEN is required to dispatch wiki updates")
+
+    if routing is not None and routing.targets:
+        dispatched = dispatch_by_target(
+            token=args.github_token,
+            routing=routing,
+            fallback_owner=dispatch_owner,
+            fallback_repo=dispatch_repo,
+            source_repo=args.source_repo,
+            after_sha=args.after_sha,
+            analysis=analysis,
+        )
+        summary = ", ".join(f"`{slug}`" for slug in dispatched)
+        write_step_summary(f"\n**Dispatched** wiki-sync events to {summary}")
+        print(f"Dispatched wiki-sync to {', '.join(dispatched)}")
+        return 0
+
     if not dispatch_owner or not dispatch_repo:
         raise RuntimeError("docs.owner and docs.repository must be set in wiki sync config")
 

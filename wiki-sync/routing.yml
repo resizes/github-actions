@@ -1,0 +1,31 @@
+# Single source of truth for wiki-sync docs destinations.
+#
+# The LLM classifies each wiki update with a `target` (see the classification
+# criterion in wiki_sync.py's prompt). The producer resolves that target here:
+#   - target enabled   -> dispatch to its owner/repository
+#   - target disabled  -> fall back to `default_target`
+#   - target unknown   -> fall back to `default_target`
+#
+# Renaming a docs repo or adding a new knowledge base = one change in this file,
+# never in the ~40 caller repos.
+version: 1
+
+default_target: knowledge-base
+
+targets:
+  # Internal + client-specific knowledge: subjective / non-objective,
+  # tied to a particular client.
+  knowledge-base:
+    owner: resizes
+    repository: knowledge-base
+    enabled: true
+
+  # Platform & development technical knowledge that is client-agnostic,
+  # objective and reusable.
+  # enabled: false until the repo (created via platform-terraform-github) and
+  # its wiki-sync-apply.yml consumer exist. While disabled, updates classified
+  # for this target fall back to `default_target`.
+  knowledge-base-agentic:
+    owner: resizes
+    repository: knowledge-base-agentic
+    enabled: false
