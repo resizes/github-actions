@@ -218,7 +218,7 @@ def build_prompt(
     wiki_blob = json.dumps(wiki_ctx, indent=2)
     return textwrap.dedent(
         f"""
-        You maintain the Resizes internal-technical-docs LLM wiki for engineers.
+        You maintain the Resizes knowledge-base LLM wiki for engineers.
 
         Source repository: {source_repo}
         Commit range: {change_set.before_sha} -> {change_set.after_sha}
@@ -549,8 +549,8 @@ def apply_from_payload(args: argparse.Namespace) -> int:
         f"[skip ci]\n\n"
         f"Updated: {', '.join(changed_paths)}"
     )
-    repo_slug = os.environ.get("GITHUB_REPOSITORY", "resizes/internal-technical-docs")
-    owner, repo = repo_slug.split("/", 1) if "/" in repo_slug else ("resizes", "internal-technical-docs")
+    repo_slug = os.environ.get("GITHUB_REPOSITORY", "resizes/knowledge-base")
+    owner, repo = repo_slug.split("/", 1) if "/" in repo_slug else ("resizes", "knowledge-base")
     git_commit_and_push(
         docs_dir,
         paths=changed_paths,
