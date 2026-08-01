@@ -1,5 +1,8 @@
 # Wiki Sync
 
+> **Status (2026-08):** Caller `sync-wiki.yml` workflows were **removed org-wide**. This action remains in-repo but is not invoked until callers are restored.
+
+
 Automatically keep an [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)-style docs repository up to date when `main` changes in source repositories.
 
 ## What it does
