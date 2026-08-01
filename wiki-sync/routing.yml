@@ -21,11 +21,8 @@ targets:
     enabled: true
 
   # Platform & development technical knowledge that is client-agnostic,
-  # objective and reusable.
-  # enabled: false until the repo (created via platform-terraform-github) and
-  # its wiki-sync-apply.yml consumer exist. While disabled, updates classified
-  # for this target fall back to `default_target`.
+  # objective and reusable. Consumer: knowledge-base-agentic wiki-sync-apply.yml.
   knowledge-base-agentic:
     owner: resizes
     repository: knowledge-base-agentic
-    enabled: false
+    enabled: true
