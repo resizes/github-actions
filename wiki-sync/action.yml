@@ -64,12 +64,14 @@ runs:
 
     - name: Generate docs repository token
       id: app-token
+      # Scoped to the owner (not a single repo) so the token can dispatch to
+      # every knowledge base declared in routing.yml — adding a new KB there
+      # needs no change here.
       uses: actions/create-github-app-token@v2
       with:
         app-id: ${{ inputs.github_app_id }}
         private-key: ${{ inputs.github_app_private_key }}
         owner: ${{ inputs.docs_repository_owner }}
-        repositories: ${{ inputs.docs_repository }}
 
     - name: Run wiki sync script
       shell: bash
@@ -90,6 +92,7 @@ runs:
           --after-sha "$after_sha" \
           --dispatch-owner "${{ inputs.docs_repository_owner }}" \
           --dispatch-repo "${{ inputs.docs_repository }}" \
+          --routing-config "${{ github.action_path }}/routing.yml" \
           --docs-branch "${{ inputs.docs_branch }}" \
           --github-token "${{ steps.app-token.outputs.token }}" \
           --litellm-base-url "${{ inputs.litellm_base_url }}" \
