@@ -2,6 +2,15 @@ name: "Post Discord Message"
 description: "Post a message in a Discord channel"
 
 inputs:
+  message_content:
+    description: "Content of the message to post"
+    default: ""
+
+  message_embeds:
+    description: "Embeds to include in the message (JSON format)"  
+    default: ""
+
+secrets:
   discord_channel_id:
     description: "Discord channel ID where the message will be posted"
     default: "false"
@@ -10,13 +19,6 @@ inputs:
     description: "Discord bot token with permissions to post messages"
     default: "."
 
-  message_content:
-    description: "Content of the message to post"
-    default: ""
-
-  message_embeds:
-    description: "Embeds to include in the message (JSON format)"  
-    default: ""
 runs:
   using: "composite"
   steps:
@@ -47,11 +49,11 @@ runs:
         echo "PAYLOAD=$PAYLOAD" >> $GITHUB_ENV
     - name: Post message to Discord channel
       env:
-        DISCORD_TOKEN: ${{ inputs.discord_bot_token }}
+        DISCORD_TOKEN: ${{ secrets.discord_bot_token }}
       shell: bash
       run: |
         # Post the message
-        MESSAGE_RESPONSE=$(curl -s -X POST "https://discord.com/api/v10/channels/${{ inputs.discord_channel_id }}/messages" \
+        MESSAGE_RESPONSE=$(curl -s -X POST "https://discord.com/api/v10/channels/${{ secrets.discord_channel_id }}/messages" \
           -H "Authorization: Bot $DISCORD_TOKEN" \
           -H "Content-Type: application/json" \
           -d "$PAYLOAD")
