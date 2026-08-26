@@ -8,6 +8,9 @@ At a high level, Renovate:
 - Creates pull requests with the updates.
 
 ## How to use Renovate Action
+
+Pass `runner: 'actions-runners'` (org ARC amd64). The reusable workflow default is already `actions-runners`; do not set `ubuntu-latest`.
+
 ### **Create your own ``renovate.json``:**
 You can use this as a template and adapt it to your needs later on. Add it to your repo's root level:
 ```json
@@ -125,7 +128,7 @@ jobs:
       log_level: ${{ inputs.log_level }}
       dry_run: ${{ inputs.dry_run }}
       force_refresh: ${{ inputs.force_refresh }}
-      runner: 'ubuntu-latest'
+      runner: 'actions-runners'
       github_app_id: ${{ secrets.RENOVATE_APP_ID }}
       owner: 'Resizes'
       repositories: |
