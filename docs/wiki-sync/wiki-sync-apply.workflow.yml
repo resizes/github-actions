@@ -10,7 +10,7 @@ permissions:
 jobs:
   apply:
     name: Apply Wiki Updates
-    runs-on: ubuntu-latest
+    runs-on: actions-runners
 
     steps:
       - name: Checkout docs repository
