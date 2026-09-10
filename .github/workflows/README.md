@@ -136,3 +136,48 @@ jobs:
     secrets:
       github_app_private_key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
 ```
+
+### **Follow-up automerge scan (one hour later):**
+Use this when `platformAutomerge` is false so GitHub Actions merges eligible PRs after CI has finished. Schedule it one hour after the create run. Renovate still automerges only one PR per run.
+
+```yaml
+name: Renovate automerge
+
+on:
+  schedule:
+  # One hour after the Monday 05:00 UTC create run
+  - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      log_level:
+        description: 'Log level'
+        required: false
+        default: 'info'
+        type: choice
+        options:
+        - info
+        - debug
+        - trace
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  checks: read
+  statuses: read
+  actions: read
+  security-events: read
+
+jobs:
+  renovate:
+    uses: resizes/github-actions/.github/workflows/renovate-automerge.yml@v1
+    with:
+      log_level: ${{ inputs.log_level || 'info' }}
+      runner: 'actions-runners'
+      github_app_id: ${{ secrets.RENOVATE_APP_ID }}
+      owner: 'Resizes'
+      repositories: |
+        ${{ github.event.repository.name }}
+    secrets:
+      github_app_private_key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+```
