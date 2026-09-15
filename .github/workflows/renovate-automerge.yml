@@ -1,0 +1,60 @@
+name: Renovate automerge
+
+on:
+  workflow_call:
+    inputs:
+      log_level:
+        description: 'Log level for Renovate'
+        required: false
+        type: string
+        default: 'info'
+      renovate_config_file:
+        description: 'Path to Renovate configuration file'
+        required: false
+        type: string
+        default: 'renovate.json'
+      runner:
+        description: 'GitHub Actions runner to use'
+        required: false
+        type: string
+        default: 'actions-runners'
+      github_app_id:
+        description: 'GitHub App ID'
+        required: true
+        type: string
+      owner:
+        description: 'Owner of the repository'
+        required: true
+        type: string
+      repositories:
+        description: 'Repositories to be applied the changes to'
+        required: true
+        type: string
+
+    outputs:
+      pr_count:
+        description: "Number of Renovate PRs found"
+        value: ${{ jobs.renovate.outputs.pr_count }}
+      pr_list:
+        description: "List of Renovate PRs"
+        value: ${{ jobs.renovate.outputs.pr_list }}
+
+    secrets:
+      github_app_private_key:
+        description: 'GitHub App private key (in .pem format)'
+        required: true
+
+jobs:
+  renovate:
+    uses: ./.github/workflows/renovate.yml
+    with:
+      log_level: ${{ inputs.log_level }}
+      dry_run: false
+      force_refresh: false
+      renovate_config_file: ${{ inputs.renovate_config_file }}
+      runner: ${{ inputs.runner }}
+      github_app_id: ${{ inputs.github_app_id }}
+      owner: ${{ inputs.owner }}
+      repositories: ${{ inputs.repositories }}
+    secrets:
+      github_app_private_key: ${{ secrets.github_app_private_key }}
