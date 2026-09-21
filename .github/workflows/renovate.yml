@@ -99,7 +99,11 @@ jobs:
           # Enable autodiscover to find the current repository
           RENOVATE_AUTODISCOVER: true
           RENOVATE_AUTODISCOVER_FILTER: ${{ github.repository }}
-          RENOVATE_GIT_AUTHOR: 'Renovate Bot <bot@renovateapp.com>'
+          # GitHub App token commits as resizes-renovate[bot]. A mismatched
+          # gitAuthor makes the follow-up automerge scan treat its own PRs as
+          # human-edited and skip merge.
+          RENOVATE_GIT_AUTHOR: 'resizes-renovate[bot] <239955194+resizes-renovate[bot]@users.noreply.github.com>'
+          RENOVATE_GIT_IGNORED_AUTHORS: '["Renovate Bot <bot@renovateapp.com>","/resizes-renovate\\[bot\\]/"]'
           
       - name: Get Renovate PRs
         id: get-prs
