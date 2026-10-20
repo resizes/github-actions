@@ -24,6 +24,14 @@ inputs:
   values_file_path:
     description: "Path to the Helm values.yaml file"
 
+  create_pull_request:
+    description: "Create a pull request instead of pushing directly to the base branch"
+    default: "false"
+
+  pull_request_base_branch:
+    description: "Base branch for the pull request when create_pull_request is true"
+    default: "main"
+
 runs:
   using: "composite"
   steps:
@@ -49,6 +57,8 @@ runs:
 
     - name: Update Deployment
       shell: bash
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
       run: |
         cd ${{ inputs.github_repository }}
         yq -i '${{ inputs.helm_tag_location }} = "${{ inputs.docker_image_tag }}"' ${{ inputs.values_file_path }}
@@ -56,5 +66,25 @@ runs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git remote set-url origin https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/${{ inputs.github_repository_owner }}/${{ inputs.github_repository }}.git
         git add .
-        git commit -m "Updating image tag to ${{ inputs.docker_image_tag }}" || echo "No changes to commit"
-        git push origin HEAD
+
+        if git diff --cached --quiet; then
+          echo "No changes to commit"
+          exit 0
+        fi
+
+        git commit -m "Updating image tag to ${{ inputs.docker_image_tag }}"
+
+        if [ "${{ inputs.create_pull_request }}" = "true" ]; then
+          BRANCH_NAME="update-image-tag-${{ inputs.docker_image_tag }}-$(date +%s)"
+          BRANCH_NAME=$(echo "$BRANCH_NAME" | tr -cd '[:alnum:].-_' | tr '[:upper:]' '[:lower:]' | cut -c1-100)
+          git checkout -b "$BRANCH_NAME"
+          git push origin "$BRANCH_NAME"
+          gh pr create \
+            --repo "${{ inputs.github_repository_owner }}/${{ inputs.github_repository }}" \
+            --title "Update image tag to ${{ inputs.docker_image_tag }}" \
+            --body "Automated image tag update for \`${{ inputs.values_file_path }}\`." \
+            --base "${{ inputs.pull_request_base_branch }}" \
+            --head "$BRANCH_NAME"
+        else
+          git push origin HEAD
+        fi
