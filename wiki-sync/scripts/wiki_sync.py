@@ -656,7 +656,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-repo", default=os.environ.get("GITHUB_REPOSITORY", ""))
     parser.add_argument("--before-sha", default=os.environ.get("GITHUB_EVENT_BEFORE", "0000000000000000000000000000000000000000"))
     parser.add_argument("--after-sha", default=os.environ.get("GITHUB_SHA", ""))
-    parser.add_argument("--litellm-base-url", default=os.environ.get("LITELLM_BASE_URL", "https://litellm.internal.resiz.es"))
+    parser.add_argument("--litellm-base-url", default=os.environ.get("LITELLM_BASE_URL", "https://inference.resizes.eu"))
     parser.add_argument("--litellm-api-key", default=os.environ.get("LITELLM_API_KEY", ""))
     parser.add_argument("--litellm-model", default=os.environ.get("LITELLM_MODEL", ""))
     parser.add_argument("--github-token", default=os.environ.get("GITHUB_TOKEN", os.environ.get("DOCS_GITHUB_TOKEN", "")))

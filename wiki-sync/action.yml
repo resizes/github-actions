@@ -41,7 +41,7 @@ inputs:
 
   litellm_base_url:
     description: "LiteLLM OpenAI-compatible base URL reachable from ARC runners"
-    default: "https://litellm.internal.resiz.es"
+    default: "https://inference.resizes.eu"
 
   litellm_api_key:
     description: "Optional LiteLLM API key"
