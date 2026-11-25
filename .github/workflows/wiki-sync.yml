@@ -46,7 +46,7 @@ on:
         description: "LiteLLM OpenAI-compatible base URL"
         required: false
         type: string
-        default: "https://litellm.internal.resiz.es"
+        default: "https://inference.resizes.eu"
 
       dry_run:
         description: "Analyze without pushing wiki updates"
